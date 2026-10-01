@@ -137,7 +137,7 @@ export function AdminPage() {
     else {
       const { error } = await supabase.from('tournament').update({ state: 'registration', live_match_id: null }).eq('id', 1)
       if (error) toast.error(error.message)
-      else toast.success('Tournament reset. Player roster kept.')
+      else { toast.success('Tournament reset. Player roster kept.'); setResetOpen(false); setResetCode('') }
     }
     setBusy(false)
   }
