@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bracket } from '../components/Bracket'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
-import type { BracketMatch, BracketPlayer } from '../lib/tournament'
+import { raceTarget, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
 type DisplayMatch = BracketMatch & {
