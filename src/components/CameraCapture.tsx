@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { resizeImage } from '../lib/image'
+import { Button } from './ui/Button'
+import { Card } from './ui/Card'
 
 type CameraCaptureProps = {
   onConfirm: (photo: Blob) => void
@@ -104,24 +106,24 @@ export function CameraCapture({ onConfirm, onCancel }: CameraCaptureProps) {
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-ink/10 bg-white/70 p-4">
+    <Card className="space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm font-semibold" htmlFor="camera-device">Camera</label>
-        <select id="camera-device" className="min-w-0 flex-1 rounded-lg border border-ink/15 bg-chalk px-3 py-2 text-sm" value={deviceId} onChange={(event) => setDeviceId(event.target.value)} disabled={Boolean(photo)}>
+        <select id="camera-device" className="min-w-0 flex-1 rounded-xl border border-gold/20 bg-ink px-3 py-2 text-sm text-warm" value={deviceId} onChange={(event) => setDeviceId(event.target.value)} disabled={Boolean(photo)}>
           {devices.length === 0 && <option value="">No cameras found</option>}
           {devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}
         </select>
       </div>
-      <div className="overflow-hidden rounded-lg bg-ink">
+      <div className="overflow-hidden rounded-xl border border-gold/20 bg-ink">
         {preview ? <img className="mx-auto aspect-square w-full max-w-sm object-cover" src={preview} alt="Captured player preview" /> : <video ref={videoRef} className="mx-auto aspect-square w-full max-w-sm object-cover" autoPlay muted playsInline />}
       </div>
-      <p className="text-sm text-ink/65">{message}</p>
+      <p className="text-sm text-muted">{message}</p>
       <div className="flex flex-wrap gap-2">
-        {!photo && <button type="button" className="rounded-lg bg-felt px-4 py-2 text-sm font-semibold text-chalk disabled:opacity-50" onClick={() => void capture()} disabled={busy || !deviceId}>{busy ? 'Preparing...' : 'Capture'}</button>}
-        {photo && <button type="button" className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold" onClick={retake}>Retake</button>}
-        {photo && <button type="button" className="rounded-lg bg-copper px-4 py-2 text-sm font-semibold text-ink" onClick={confirm}>Confirm photo</button>}
-        {onCancel && <button type="button" className="rounded-lg border border-ink/20 px-4 py-2 text-sm" onClick={onCancel}>Cancel</button>}
+        {!photo && <Button type="button" variant="secondary" onClick={() => void capture()} disabled={busy || !deviceId}>{busy ? 'Preparing...' : 'Capture'}</Button>}
+        {photo && <Button type="button" variant="outline" onClick={retake}>Retake</Button>}
+        {photo && <Button type="button" onClick={confirm}>Confirm photo</Button>}
+        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
       </div>
-    </div>
+    </Card>
   )
 }

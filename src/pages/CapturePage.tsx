@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { Camera } from 'lucide-react'
+import { LogoTitle } from '../components/brand/LogoTitle'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { resizeImage } from '../lib/image'
 import { supabase } from '../lib/supabase'
 
@@ -48,17 +52,14 @@ export function CapturePage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-chalk px-6 text-center text-ink">
-      <section className="w-full max-w-md px-6">
-        <p className="text-sm uppercase tracking-[0.28em] text-felt">GBC Solo</p>
-        <h1 className="mt-4 font-display text-5xl">Remote photo capture</h1>
-        <p className="mt-4 text-ink/65">Player {playerId ?? 'unknown'}</p>
-        {preview && <img className="mx-auto mt-6 aspect-square w-full max-w-sm rounded-xl object-cover" src={preview} alt="Photo preview" />}
-        <label className="mt-6 block cursor-pointer rounded-lg bg-felt px-4 py-3 font-semibold text-chalk">Take or choose photo<input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => void choosePhoto(event.target.files?.[0])} /></label>
-        <p className="mt-4 text-sm text-ink/65">{status}</p>
-        {!token && <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800">This page needs a valid QR link.</p>}
-        <button className="mt-5 rounded-lg bg-copper px-5 py-3 font-semibold text-ink disabled:opacity-50" disabled={!photo || !token || busy} onClick={() => void uploadPhoto()}>{busy ? 'Uploading...' : 'Upload photo'}</button>
-      </section>
+    <main className="grid min-h-screen place-items-center bg-felt-gradient px-6 py-10 text-center text-warm">
+      <section className="w-full max-w-md"><div className="mb-8 flex justify-center"><LogoTitle /></div><Card className="p-6"><p className="text-xs uppercase tracking-[0.3em] text-gold">Secure remote capture</p><h1 className="mt-3 font-display text-4xl">Player photo</h1><p className="mt-3 text-muted">Player {playerId ?? 'unknown'}</p>
+        {preview && <img className="mx-auto mt-6 aspect-square w-full max-w-sm rounded-2xl border border-gold/30 object-cover" src={preview} alt="Photo preview" />}
+        <label className="mt-6 flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-gold-metal px-4 py-3 font-semibold text-ink transition hover:brightness-110"><Camera size={18} /> Take or choose photo<input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => void choosePhoto(event.target.files?.[0])} /></label>
+        <p className="mt-4 text-sm text-muted">{status}</p>
+        {!token && <p className="mt-3 rounded-xl border border-goldDark/50 bg-goldDark/15 px-3 py-2 text-sm text-goldLight">This page needs a valid QR link.</p>}
+        <Button className="mt-5 w-full" disabled={!photo || !token || busy} onClick={() => void uploadPhoto()}>{busy ? 'Uploading...' : 'Upload photo'}</Button>
+      </Card></section>
     </main>
   )
 }

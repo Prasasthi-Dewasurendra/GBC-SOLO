@@ -1,19 +1,22 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { Camera, Download, LayoutGrid, LogOut, Radio, RotateCcw, Shield, Trophy, UserPlus, Users, QrCode } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { CameraCapture } from '../components/CameraCapture'
 import { ConnectionBanner } from '../components/ConnectionBanner'
+import { LogoTitle } from '../components/brand/LogoTitle'
+import { PlayerAvatar } from '../components/brand/PlayerAvatar'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/Dialog'
+import { Input } from '../components/ui/Input'
+import { Badge } from '../components/ui/Badge'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { downloadCsv } from '../lib/csv'
 import { resizeImage } from '../lib/image'
 import { supabase } from '../lib/supabase'
+import { toast } from 'sonner'
 
-type Player = {
-  id: string
-  name: string
-  photo_url: string | null
-  seed: number | null
-  created_at: string
-}
+type Player = { id: string; name: string; photo_url: string | null; seed: number | null; created_at: string }
 
 export function AdminPage() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -24,10 +27,9 @@ export function AdminPage() {
   const [cameraOpen, setCameraOpen] = useState(false)
   const [remoteLink, setRemoteLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
   const [tournamentState, setTournamentState] = useState('registration')
-  const rosterLocked = tournamentState !== 'registration'
   const online = useConnectionStatus()
+  const rosterLocked = tournamentState !== 'registration'
 
   useEffect(() => {
     async function loadData() {
@@ -35,13 +37,9 @@ export function AdminPage() {
         supabase.from('players').select('*').order('created_at'),
         supabase.from('tournament').select('state').eq('id', 1).single(),
       ])
-      if (playerError || tournamentError) setMessage(playerError?.message ?? tournamentError?.message ?? 'Could not load tournament data.')
-      else {
-        setPlayers((playerData ?? []) as Player[])
-        setTournamentState(tournamentData.state)
-      }
+      if (playerError || tournamentError) toast.error(playerError?.message ?? tournamentError?.message ?? 'Could not load tournament data.')
+      else { setPlayers((playerData ?? []) as Player[]); setTournamentState(tournamentData.state) }
     }
-
     void loadData()
     const channel = supabase.channel('admin-players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadData() })
@@ -50,12 +48,10 @@ export function AdminPage() {
     return () => { void supabase.removeChannel(channel) }
   }, [])
 
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
+  async function signOut() { await supabase.auth.signOut() }
 
   function clearPhoto() {
-    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    if (photoPreview?.startsWith('blob:')) URL.revokeObjectURL(photoPreview)
     setPhoto(null)
     setPhotoPreview(null)
   }
@@ -68,9 +64,7 @@ export function AdminPage() {
       clearPhoto()
       setPhoto(prepared)
       setPhotoPreview(URL.createObjectURL(prepared))
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not prepare that image.')
-    }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not prepare that image.') }
   }
 
   function editPlayer(player: Player) {
@@ -78,20 +72,14 @@ export function AdminPage() {
     setName(player.name)
     clearPhoto()
     setPhotoPreview(player.photo_url)
-    setMessage(null)
   }
 
-  function resetForm() {
-    setEditingId(null)
-    setName('')
-    clearPhoto()
-    setMessage(null)
-  }
+  function resetForm() { setEditingId(null); setName(''); clearPhoto() }
 
   async function uploadPhoto(playerId: string, image: Blob) {
     const path = `${playerId}/${crypto.randomUUID()}.jpg`
-    const { error: uploadError } = await supabase.storage.from('player-photos').upload(path, image, { contentType: 'image/jpeg', upsert: false })
-    if (uploadError) throw uploadError
+    const { error } = await supabase.storage.from('player-photos').upload(path, image, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw error
     return supabase.storage.from('player-photos').getPublicUrl(path).data.publicUrl
   }
 
@@ -99,12 +87,10 @@ export function AdminPage() {
     event.preventDefault()
     const cleanName = name.trim()
     if (!cleanName || (!editingId && (players.length >= 32 || rosterLocked))) {
-      if (rosterLocked && !editingId) setMessage('The draw is locked. Reset the draw before changing roster membership.')
+      if (rosterLocked && !editingId) toast.error('The draw is locked. Reset the tournament before changing roster membership.')
       return
     }
     setBusy(true)
-    setMessage(null)
-
     try {
       let playerId = editingId
       if (editingId) {
@@ -115,89 +101,50 @@ export function AdminPage() {
         if (error) throw error
         playerId = data.id
       }
-
       if (playerId && photo) {
         const photoUrl = await uploadPhoto(playerId, photo)
         const { error } = await supabase.from('players').update({ photo_url: photoUrl }).eq('id', playerId)
         if (error) throw error
       }
       resetForm()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Player could not be saved.')
-    } finally {
-      setBusy(false)
-    }
+      toast.success(editingId ? 'Player updated.' : 'Player registered.')
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Player could not be saved.') }
+    finally { setBusy(false) }
   }
 
   async function deletePlayer(player: Player) {
-    if (rosterLocked) {
-      setMessage('The draw is locked. Reset the draw before deleting a player.')
-      return
-    }
+    if (rosterLocked) { toast.error('The draw is locked. Reset the tournament before deleting a player.'); return }
     if (!window.confirm(`Delete ${player.name}?`)) return
     const { error } = await supabase.from('players').delete().eq('id', player.id)
-    if (error) setMessage(error.message)
+    if (error) toast.error(error.message)
+    else toast.success('Player deleted.')
   }
 
   async function createRemoteLink(playerId: string) {
-    setMessage(null)
     const { data, error } = await supabase.functions.invoke('capture-photo', { body: { action: 'create', playerId } })
-    if (error || !data?.token) {
-      setMessage(error?.message ?? 'Remote capture is not available yet.')
-      return
-    }
+    if (error || !data?.token) { toast.error(error?.message ?? 'Remote capture is not available yet.'); return }
     setRemoteLink(`${window.location.origin}/capture/${playerId}?token=${encodeURIComponent(data.token)}`)
   }
 
-  function exportPlayers() {
-    downloadCsv('gbc-solo-players.csv', ['Name', 'Seed', 'Photo URL', 'Registered At'], players.map((player) => [player.name, player.seed, player.photo_url, player.created_at]))
-  }
+  function exportPlayers() { downloadCsv('gbc-solo-players.csv', ['Name', 'Seed', 'Photo URL', 'Registered At'], players.map((player) => [player.name, player.seed, player.photo_url, player.created_at])) }
 
   async function resetTournament() {
     if (!window.confirm('Reset the tournament bracket and all match scores? Players will be kept.')) return
-    if (!window.confirm('This cannot be undone. Type OK in the next prompt to continue.')) return
-    const confirmation = window.prompt('Type RESET to confirm.')
-    if (confirmation !== 'RESET') {
-      setMessage('Reset cancelled.')
-      return
-    }
+    if (window.prompt('Type RESET to confirm.') !== 'RESET') return
     setBusy(true)
     const { error: matchError } = await supabase.from('matches').delete().gte('round', 1)
-    if (matchError) setMessage(matchError.message)
+    if (matchError) toast.error(matchError.message)
     else {
       const { error } = await supabase.from('tournament').update({ state: 'registration', live_match_id: null }).eq('id', 1)
-      if (error) setMessage(error.message)
-      else setMessage('Tournament reset. The player roster is ready for a new draw.')
+      if (error) toast.error(error.message)
+      else toast.success('Tournament reset. Player roster kept.')
     }
     setBusy(false)
   }
 
-  return (
-    <main className="min-h-screen bg-chalk text-ink"><ConnectionBanner online={online} />
-      <header className="flex items-center justify-between border-b border-ink/10 px-6 py-5 md:px-10">
-        <div><p className="text-xs uppercase tracking-[0.28em] text-felt">GBC Solo</p><h1 className="font-display text-3xl">Tournament control</h1></div>
-        <div className="flex flex-wrap items-center justify-end gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/scoring">Scoring</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold" onClick={exportPlayers}>Export CSV</button><button className="rounded-lg border border-red-700/30 px-4 py-2 text-sm font-semibold text-red-700" onClick={() => void resetTournament()} disabled={busy}>Reset</button><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
-      </header>
-      <section className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:px-10">
-        <div>
-          <div className="mb-6 flex items-end justify-between"><div><p className="text-sm uppercase tracking-[0.24em] text-felt">Registration</p><h2 className="font-display text-4xl">{rosterLocked ? 'Roster locked' : 'Add players'}</h2></div><strong className="text-2xl text-copper">{players.length} / 32</strong></div>
-          <form className="space-y-4 rounded-2xl bg-white/70 p-6 shadow-sm" onSubmit={savePlayer}>
-            <label className="block text-sm font-semibold">Player name<input className="mt-2 w-full rounded-lg border border-ink/15 bg-chalk px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-copper" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} /></label>
-            {photoPreview && <img className="aspect-square w-40 rounded-lg object-cover" src={photoPreview} alt="Player preview" />}
-            <div className="flex flex-wrap gap-2">
-              <label className="cursor-pointer rounded-lg border border-ink/20 px-3 py-2 text-sm font-semibold">Choose photo<input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => void chooseFile(event)} /></label>
-              <button type="button" className="rounded-lg border border-ink/20 px-3 py-2 text-sm font-semibold" onClick={() => setCameraOpen(true)}>Use camera</button>
-              {photoPreview && <button type="button" className="rounded-lg border border-ink/20 px-3 py-2 text-sm" onClick={clearPhoto}>Remove photo</button>}
-            </div>
-            {cameraOpen && <CameraCapture onConfirm={(captured) => { clearPhoto(); setPhoto(captured); setPhotoPreview(URL.createObjectURL(captured)); setCameraOpen(false) }} onCancel={() => setCameraOpen(false)} />}
-            {message && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800">{message}</p>}
-            <div className="flex gap-2"><button className="rounded-lg bg-felt px-4 py-2.5 font-semibold text-chalk disabled:opacity-50" disabled={busy || (!editingId && (players.length >= 32 || rosterLocked))}>{busy ? 'Saving...' : editingId ? 'Save changes' : rosterLocked ? 'Roster locked' : 'Register player'}</button>{editingId && <button type="button" className="rounded-lg border border-ink/20 px-4 py-2.5" onClick={resetForm}>Cancel</button>}</div>
-          </form>
-          <p className="mt-4 text-sm text-ink/60">A phone used as a webcam, including DroidCam or Camo, appears in the camera dropdown. For a separate phone, use the QR option beside a player.</p>
-        </div>
-        <div><h2 className="mb-4 font-display text-3xl">Registered players</h2>{rosterLocked && <p className="mb-4 rounded-lg bg-copper/20 px-3 py-2 text-sm text-ink/70">The draw is confirmed. You can edit photos or names, but adding and deleting players is disabled.</p>}<div className="grid gap-3 sm:grid-cols-2">{players.map((player, index) => <article className="flex gap-3 rounded-xl border border-ink/10 bg-white/70 p-3" key={player.id}>{player.photo_url ? <img className="h-20 w-20 rounded-lg object-cover" src={player.photo_url} alt="" /> : <div className="grid h-20 w-20 place-items-center rounded-lg bg-felt text-2xl text-chalk">{player.name.charAt(0).toUpperCase()}</div>}<div className="min-w-0 flex-1"><p className="text-xs text-ink/50">Player {index + 1}</p><h3 className="truncate font-semibold">{player.name}</h3><div className="mt-2 flex flex-wrap gap-2"><button className="text-xs font-semibold text-felt underline" onClick={() => editPlayer(player)}>Edit</button><button className="text-xs font-semibold text-red-700 underline disabled:cursor-not-allowed disabled:opacity-40" disabled={rosterLocked} onClick={() => void deletePlayer(player)}>Delete</button><button className="text-xs font-semibold text-felt underline" onClick={() => void createRemoteLink(player.id)}>Phone QR</button></div></div></article>)}</div></div>
-      </section>
-      {remoteLink && <div className="fixed inset-0 z-10 grid place-items-center bg-ink/70 p-6" role="dialog" aria-modal="true"><div className="w-full max-w-sm rounded-2xl bg-chalk p-6 text-center"><h2 className="font-display text-3xl">Scan with phone</h2><p className="mt-2 text-sm text-ink/60">This link expires after 10 minutes and works once.</p><div className="my-5 flex justify-center bg-white p-4"><QRCodeCanvas value={remoteLink} size={240} /></div><button className="rounded-lg border border-ink/20 px-4 py-2 font-semibold" onClick={() => setRemoteLink(null)}>Close</button></div></div>}
-    </main>
-  )
+  return <main className="min-h-screen bg-ink text-warm"><ConnectionBanner online={online} /><div className="flex min-h-screen"><aside className="hidden w-64 shrink-0 border-r border-gold/20 bg-surface/80 p-6 lg:block"><LogoTitle /><nav className="mt-12 space-y-2"><SideLink href="/admin" icon={<Users size={17} />} label="Registration" active /><SideLink href="/admin/draw" icon={<LayoutGrid size={17} />} label="Draw" /><SideLink href="/admin/scoring" icon={<Radio size={17} />} label="Scoring" /><SideLink href="/display" icon={<Trophy size={17} />} label="Display" /></nav><div className="mt-auto pt-24"><SideLink href="/admin/design-preview" icon={<Shield size={17} />} label="Design preview" /></div></aside><div className="min-w-0 flex-1"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-gold/20 bg-surface/70 px-6 py-5 backdrop-blur-xl md:px-10"><div><p className="text-xs uppercase tracking-[0.3em] text-gold">Operator desk</p><h1 className="font-display text-3xl">Registration</h1></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={exportPlayers}><Download size={16} /> Export</Button><Button variant="outline" onClick={() => void resetTournament()} disabled={busy}><RotateCcw size={16} /> Reset</Button><Button variant="ghost" onClick={signOut}><LogOut size={16} /> Sign out</Button></div></header><section className="mx-auto max-w-7xl space-y-8 px-6 py-8 md:px-10"><Card className="bg-felt-gradient p-6 md:p-8"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs uppercase tracking-[0.28em] text-goldLight">Tournament state · {tournamentState}</p><h2 className="mt-2 font-display text-4xl">Build the field</h2><p className="mt-2 max-w-xl text-muted">Register the players before the draw locks the roster.</p></div><div className="text-right"><strong className="font-display text-5xl text-goldLight">{players.length}<span className="text-2xl text-muted"> / 32</span></strong><div className="mt-3 h-2 w-48 overflow-hidden rounded-full bg-ink/70"><div className="h-full bg-gold-metal transition-all" style={{ width: `${Math.min(players.length / 32 * 100, 100)}%` }} /></div></div></div></Card><div className="grid gap-8 xl:grid-cols-[22rem_minmax(0,1fr)]"><Card className="h-fit p-6"><div className="flex items-center gap-3"><UserPlus className="text-gold" /><div><h2 className="font-display text-2xl">{editingId ? 'Edit player' : 'New player'}</h2><p className="text-xs text-muted">Name and photo</p></div></div><form className="mt-6 space-y-5" onSubmit={savePlayer}><label className="block text-sm font-medium text-muted">Player name<Input className="mt-2" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} placeholder="Enter full name" /></label>{photoPreview && <PlayerAvatar photoUrl={photoPreview} name={name || 'Preview'} size="xl" ring="gold" />}<div className="grid grid-cols-2 gap-2"><label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gold/25 px-3 py-3 text-xs font-semibold text-goldLight transition hover:bg-gold/10"><Download size={15} /> Choose<input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => void chooseFile(event)} /></label><Button type="button" variant="secondary" onClick={() => setCameraOpen(true)}><Camera size={15} /> Camera</Button></div>{rosterLocked && <p className="rounded-xl border border-goldDark/50 bg-goldDark/15 p-3 text-xs text-goldLight">Roster locked after draw. You can still edit photos and names.</p>}<div className="flex gap-2"><Button className="flex-1" disabled={busy || (!editingId && (players.length >= 32 || rosterLocked))}>{busy ? 'Saving...' : editingId ? 'Save changes' : 'Register player'}</Button>{editingId && <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>}</div></form><p className="mt-5 text-xs leading-5 text-muted">DroidCam and Camo appear in the same camera list as USB webcams. Use Phone QR for a separate phone.</p></Card><div><div className="mb-4 flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.25em] text-gold">Field list</p><h2 className="font-display text-3xl">Registered players</h2></div>{rosterLocked ? <Badge tone="done">Locked</Badge> : <Badge tone="pending">Open</Badge>}</div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{players.map((player, index) => <Card className="flex items-center gap-3 p-3" key={player.id}><PlayerAvatar photoUrl={player.photo_url} name={player.name} size="md" ring={rosterLocked ? 'gold' : 'none'} /><div className="min-w-0 flex-1"><p className="text-[10px] uppercase tracking-[0.18em] text-muted">Player {String(index + 1).padStart(2, '0')}</p><h3 className="truncate font-semibold text-warm" title={player.name}>{player.name}</h3><div className="mt-2 flex gap-3 text-[11px]"><button className="text-goldLight hover:text-gold" onClick={() => editPlayer(player)}>Edit</button><button className="text-muted hover:text-goldLight disabled:cursor-not-allowed disabled:opacity-40" disabled={rosterLocked} onClick={() => void deletePlayer(player)}>Delete</button><button className="inline-flex items-center gap-1 text-goldLight hover:text-gold" onClick={() => void createRemoteLink(player.id)}><QrCode size={12} /> QR</button></div></div></Card>)}</div></div></div></section></div></div><Dialog open={cameraOpen} onOpenChange={setCameraOpen}><DialogContent><DialogTitle className="font-display text-2xl">Capture player photo</DialogTitle><DialogDescription className="mt-1 text-muted">Choose a camera, frame a centered square, then confirm.</DialogDescription><div className="mt-5"><CameraCapture onConfirm={(captured) => { clearPhoto(); setPhoto(captured); setPhotoPreview(URL.createObjectURL(captured)); setCameraOpen(false) }} onCancel={() => setCameraOpen(false)} /></div></DialogContent></Dialog><Dialog open={Boolean(remoteLink)} onOpenChange={(open) => !open && setRemoteLink(null)}><DialogContent className="text-center"><DialogTitle className="font-display text-2xl">Scan with phone</DialogTitle><DialogDescription className="mt-1 text-muted">This secure link expires after 10 minutes and works once.</DialogDescription>{remoteLink && <div className="mx-auto my-6 w-fit rounded-xl bg-warm p-4"><QRCodeCanvas value={remoteLink} size={220} /></div>}<Button variant="outline" onClick={() => setRemoteLink(null)}>Close</Button></DialogContent></Dialog></main>
+}
+
+function SideLink({ href, icon, label, active = false }: { href: string; icon: React.ReactNode; label: string; active?: boolean }) {
+  return <a className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-3 text-sm transition ${active ? 'border-gold bg-gold/10 text-goldLight' : 'border-transparent text-muted hover:bg-warm/5 hover:text-warm'}`} href={href}>{icon}{label}</a>
 }
