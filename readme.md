@@ -29,3 +29,20 @@ The admin route uses Supabase email/password authentication. The database tables
 7. Use that email and password at `/login` to test the protected `/admin` route.
 
 The frontend may contain the Supabase anon key, but never place a `service_role` key in `.env.local` or browser code.
+
+## Step 3 player registration
+
+1. Run `supabase/capture_sessions.sql` in **Supabase Dashboard -> SQL Editor -> New query**. This adds short-lived, one-use sessions for remote phone photos.
+2. Deploy `supabase/functions/capture-photo` as the `capture-photo` Edge Function. The function uses the Supabase service role key only in the hosted function environment; never add that key to frontend `.env` files.
+3. Install the new frontend dependency and restart Vite:
+
+```bash
+npm install
+npm run dev
+```
+
+4. Sign in at `/login`, open `/admin`, and register a player.
+5. Test **Choose photo**, **Use camera**, **Edit**, **Delete**, and the `32`-player limit.
+6. For phone capture, click **Phone QR** beside a player. The QR link expires after 10 minutes and can be used once.
+
+For camera access, open the app over HTTPS in production or use `localhost` during development. A DroidCam or Camo phone camera appears in the same camera dropdown as any USB webcam.
