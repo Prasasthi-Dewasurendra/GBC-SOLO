@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminPage } from './pages/AdminPage'
 import { CapturePage } from './pages/CapturePage'
 import { DisplayPage } from './pages/DisplayPage'
+import { DrawPage } from './pages/DrawPage'
 import { LoginPage } from './pages/LoginPage'
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
         <Route path="/capture/:playerId" element={<CapturePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/draw" element={<DrawPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/display" replace />} />
       </Routes>

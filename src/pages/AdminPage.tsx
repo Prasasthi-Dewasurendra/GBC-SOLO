@@ -131,7 +131,7 @@ export function AdminPage() {
     <main className="min-h-screen bg-chalk text-ink">
       <header className="flex items-center justify-between border-b border-ink/10 px-6 py-5 md:px-10">
         <div><p className="text-xs uppercase tracking-[0.28em] text-felt">GBC Solo</p><h1 className="font-display text-3xl">Tournament control</h1></div>
-        <button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button>
+        <div className="flex items-center gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
       </header>
       <section className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:px-10">
         <div>
