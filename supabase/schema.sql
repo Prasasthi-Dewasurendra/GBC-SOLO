@@ -20,6 +20,7 @@ create table if not exists public.matches (
   p1_racks integer not null default 0 check (p1_racks >= 0),
   p2_racks integer not null default 0 check (p2_racks >= 0),
   best_of integer not null check (best_of in (3, 5)),
+  table_number integer check (table_number is null or table_number between 1 and 4),
   status text not null default 'pending' check (status in ('pending', 'live', 'done')),
   winner_id uuid references public.players(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -28,6 +29,10 @@ create table if not exists public.matches (
   check (winner_id is null or winner_id = player1_id or winner_id = player2_id),
   check (status <> 'done' or winner_id is not null)
 );
+
+create unique index if not exists one_live_match_per_table
+  on public.matches (table_number)
+  where status = 'live' and table_number is not null;
 
 create table if not exists public.tournament (
   id integer primary key default 1 check (id = 1),

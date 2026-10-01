@@ -131,3 +131,11 @@ Vercel and Netlify can use the same `npm run build` and `dist` settings. The inc
 - Confirm the admin email, Supabase URL, anon key, Edge Function, and Auth redirect URL.
 - Do not put a `service_role` key in frontend environment variables.
 - Open the Supabase project a few days before the event because free projects may pause after about one week of inactivity.
+
+## Four-table match operation
+
+Run `supabase/multi_table_matches.sql` in **Supabase Dashboard -> SQL Editor** once for existing databases. New databases receive the same `table_number` column from `supabase/schema.sql`.
+
+On `/admin/scoring`, select a pending match, choose **Table 1**, **Table 2**, **Table 3**, or **Table 4**, and start it. Each table can have one live match, and each live match has its own scoring controls. The database rejects duplicate live assignments to the same table.
+
+The `/display` live scene shows all assigned live matches in a four-card grid with table labels, player photos, names, and rack scores. When no table is live, the display returns to the bracket/up-next rotation.

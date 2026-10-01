@@ -10,7 +10,7 @@ import { PlayerAvatar } from '../components/brand/PlayerAvatar'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
-import { raceTarget, type BracketMatch, type BracketPlayer } from '../lib/tournament'
+import type { BracketMatch, BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
 type DisplayMatch = BracketMatch & { id: string; p1_racks: number; p2_racks: number }
@@ -22,7 +22,6 @@ export function DisplayPage() {
   const [players, setPlayers] = useState<BracketPlayer[]>([])
   const [matches, setMatches] = useState<DisplayMatch[]>([])
   const [tournamentState, setTournamentState] = useState<TournamentState>('registration')
-  const [liveMatchId, setLiveMatchId] = useState<string | null>(null)
   const [scene, setScene] = useState<Scene>('bracket')
   const [connection, setConnection] = useState('connecting')
   const [error, setError] = useState<string | null>(null)
@@ -30,26 +29,26 @@ export function DisplayPage() {
   const [clock, setClock] = useState(() => new Date())
   const online = useConnectionStatus()
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
-  const liveMatch = matches.find((match) => match.id === liveMatchId && match.status === 'live') ?? matches.find((match) => match.status === 'live')
+  const liveMatches = matches.filter((match) => match.status === 'live' && match.table_number)
   const finalMatch = matches.find((match) => match.round === 5)
   const champion = finalMatch?.winner_id ? playerById.get(finalMatch.winner_id) : undefined
 
   async function loadDisplay() {
     const [{ data: playerData, error: playerError }, { data: matchData, error: matchError }, { data: tournamentData, error: tournamentError }] = await Promise.all([
       supabase.from('players').select('id, name, photo_url').order('created_at'),
-      supabase.from('matches').select('id, round, slot, player1_id, player2_id, p1_racks, p2_racks, best_of, status, winner_id').order('round').order('slot'),
+      supabase.from('matches').select('id, round, slot, player1_id, player2_id, p1_racks, p2_racks, table_number, best_of, status, winner_id').order('round').order('slot'),
       supabase.from('tournament').select('state, live_match_id').eq('id', 1).single(),
     ])
     if (playerError || matchError || tournamentError) { setError(playerError?.message ?? matchError?.message ?? tournamentError?.message ?? 'The display could not load tournament data.'); return }
     setError(null)
     const nextMatches = (matchData ?? []) as DisplayMatch[]
+    const nextLiveMatches = nextMatches.filter((match) => match.status === 'live' && match.table_number)
     setPlayers((playerData ?? []) as BracketPlayer[])
     setMatches(nextMatches)
     setTournamentState(tournamentData.state as TournamentState)
-    setLiveMatchId(tournamentData.live_match_id)
-    if (tournamentData.live_match_id) setScene('live')
+    if (nextLiveMatches.length) setScene('live')
     if (tournamentData.state === 'finished') setScene('champion')
-    if (!tournamentData.live_match_id && tournamentData.state === 'live') setScene('up-next')
+    if (!nextLiveMatches.length && tournamentData.state === 'live') setScene('up-next')
   }
 
   useEffect(() => {
@@ -80,12 +79,12 @@ export function DisplayPage() {
   }, [tournamentState, champion])
 
   useEffect(() => {
-    if (liveMatch || tournamentState === 'finished') return
+    if (liveMatches.length || tournamentState === 'finished') return
     const scenes: Scene[] = ['bracket', 'up-next']
     let index = scenes.indexOf(scene)
     const timer = window.setInterval(() => { index = (index + 1) % scenes.length; setScene(scenes[index]) }, 12000)
     return () => window.clearInterval(timer)
-  }, [liveMatch, scene, tournamentState])
+  }, [liveMatches.length, scene, tournamentState])
 
   function nameFor(id: string | null) { return id ? playerById.get(id)?.name ?? 'Unknown player' : 'TBD' }
   function photoFor(id: string | null) { return id ? playerById.get(id)?.photo_url : null }
@@ -100,9 +99,8 @@ export function DisplayPage() {
   }
 
   function liveScene() {
-    if (!liveMatch) return null
-    const target = raceTarget(liveMatch.best_of)
-    return <section className="flex min-h-[calc(100vh-8rem)] flex-col justify-center"><div className="flex items-center justify-center gap-3"><LiveBadge /><Badge tone="done">{liveMatch.round === 5 ? 'FINAL · Best of 5' : `ROUND ${liveMatch.round} · Best of 3`}</Badge></div><h1 className="mt-5 text-center font-display text-4xl text-muted">Race to {target}</h1><div className="mt-8 flex items-center gap-5 md:gap-14">{renderPlayer(liveMatch.player1_id, liveMatch.p1_racks)}<div className="flex shrink-0 flex-col items-center gap-4"><span className="font-display text-5xl text-gold/50">VS</span><div className="flex gap-2">{Array.from({ length: target }, (_, index) => <span className={`h-3 w-3 rounded-full border ${index < liveMatch.p1_racks ? 'border-gold bg-gold shadow-gold' : 'border-muted/60'}`} key={index} />)}</div></div>{renderPlayer(liveMatch.player2_id, liveMatch.p2_racks)}</div></section>
+    if (!liveMatches.length) return null
+    return <section className="flex min-h-[calc(100vh-8rem)] flex-col justify-center"><div className="flex items-center justify-center gap-3"><LiveBadge /><Badge tone="live">{liveMatches.length} tables live</Badge></div><h1 className="mt-5 text-center font-display text-4xl text-muted">Live matches</h1><div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">{liveMatches.map((match) => <div className="relative" key={match.id}><span className="absolute left-4 top-4 z-10 rounded-full border border-gold/30 bg-ink/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-goldLight">Table {match.table_number}</span><MatchCard match={asCard(match)} variant="display" /></div>)}</div></section>
   }
 
   function upNextScene() {

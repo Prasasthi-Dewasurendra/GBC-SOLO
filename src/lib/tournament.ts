@@ -12,6 +12,7 @@ export type BracketMatch = {
   best_of: 3 | 5
   status: 'pending' | 'live' | 'done'
   winner_id: string | null
+  table_number: number | null
 }
 
 export type RandomSource = () => number
@@ -53,6 +54,7 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
         best_of: round === 5 ? 5 : 3,
         status: 'pending',
         winner_id: null,
+        table_number: null,
       })
     }
   }

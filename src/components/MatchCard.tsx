@@ -13,6 +13,7 @@ export type MatchCardData = {
   player2?: { name: string; photo_url?: string | null }
   p1_racks?: number
   p2_racks?: number
+  table_number?: number | null
   best_of: 3 | 5
   status: 'pending' | 'live' | 'done'
   winner_id: string | null
@@ -33,7 +34,7 @@ export function MatchCard({ match, variant = 'standard', onClick }: MatchCardPro
   const cardClass = match.round === 5 ? 'border-gold/70 shadow-gold' : match.status === 'live' ? 'border-live/60 shadow-live' : 'border-gold/20'
 
   return <motion.button type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.99 }} onClick={onClick} className={`glass-card w-full rounded-2xl border p-3 text-left transition ${cardClass} ${onClick ? 'cursor-pointer' : 'cursor-default'} ${display ? 'p-5' : ''}`}>
-    <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-goldLight">{roundNames[match.round]}</span>{match.round === 5 && <Trophy className="text-gold" size={15} />}</div><Badge tone={statusTone}>{match.status}</Badge></div>
+    <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-goldLight">{roundNames[match.round]}</span>{match.table_number && <span className="rounded-full border border-live/30 bg-live/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-glow">Table {match.table_number}</span>}{match.round === 5 && <Trophy className="text-gold" size={15} />}</div><Badge tone={statusTone}>{match.status}</Badge></div>
     <div className={`flex items-center gap-3 ${compact ? 'flex-col items-stretch' : ''}`}>
       <PlayerLine name={p1.name} photoUrl={p1.photo_url} score={match.p1_racks ?? 0} winner={p1Winner} tbd={p1.name === 'TBD'} display={display} />
       <span className="shrink-0 font-display text-lg text-muted/50">vs</span>
