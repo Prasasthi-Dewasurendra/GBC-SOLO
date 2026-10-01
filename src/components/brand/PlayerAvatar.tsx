@@ -10,7 +10,7 @@ type PlayerAvatarProps = {
   state?: 'normal' | 'winner' | 'eliminated' | 'tbd'
 }
 
-const sizes = { sm: 'h-9 w-9 text-xs', md: 'h-14 w-14 text-lg', lg: 'h-24 w-24 text-3xl', xl: 'h-40 w-40 text-5xl md:h-56 md:w-56 md:text-7xl' }
+const sizes = { sm: 'h-9 w-9 text-xs', md: 'h-14 w-14 text-lg', lg: 'h-24 w-24 text-3xl', xl: 'h-64 w-64 text-6xl md:h-80 md:w-80 md:text-8xl' }
 
 export function PlayerAvatar({ photoUrl, name, size = 'md', ring = 'none', state = 'normal' }: PlayerAvatarProps) {
   const [loaded, setLoaded] = useState(false)
