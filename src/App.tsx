@@ -6,6 +6,7 @@ import { DisplayPage } from './pages/DisplayPage'
 import { DrawPage } from './pages/DrawPage'
 import { LoginPage } from './pages/LoginPage'
 import { ScoringPage } from './pages/ScoringPage'
+import { DesignPreviewPage } from './pages/DesignPreviewPage'
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/draw" element={<DrawPage />} />
           <Route path="/admin/scoring" element={<ScoringPage />} />
+          <Route path="/admin/design-preview" element={<DesignPreviewPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/display" replace />} />
       </Routes>
