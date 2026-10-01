@@ -5,6 +5,7 @@ import { CapturePage } from './pages/CapturePage'
 import { DisplayPage } from './pages/DisplayPage'
 import { DrawPage } from './pages/DrawPage'
 import { LoginPage } from './pages/LoginPage'
+import { ScoringPage } from './pages/ScoringPage'
 
 export function App() {
   return (
@@ -16,6 +17,7 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/draw" element={<DrawPage />} />
+          <Route path="/admin/scoring" element={<ScoringPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/display" replace />} />
       </Routes>

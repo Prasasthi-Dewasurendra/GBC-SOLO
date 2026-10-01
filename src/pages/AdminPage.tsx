@@ -22,16 +22,27 @@ export function AdminPage() {
   const [remoteLink, setRemoteLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [tournamentState, setTournamentState] = useState('registration')
+  const rosterLocked = tournamentState !== 'registration'
 
   useEffect(() => {
-    async function loadPlayers() {
-      const { data, error } = await supabase.from('players').select('*').order('created_at')
-      if (error) setMessage(error.message)
-      else setPlayers((data ?? []) as Player[])
+    async function loadData() {
+      const [{ data: playerData, error: playerError }, { data: tournamentData, error: tournamentError }] = await Promise.all([
+        supabase.from('players').select('*').order('created_at'),
+        supabase.from('tournament').select('state').eq('id', 1).single(),
+      ])
+      if (playerError || tournamentError) setMessage(playerError?.message ?? tournamentError?.message ?? 'Could not load tournament data.')
+      else {
+        setPlayers((playerData ?? []) as Player[])
+        setTournamentState(tournamentData.state)
+      }
     }
 
-    void loadPlayers()
-    const channel = supabase.channel('admin-players').on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadPlayers() }).subscribe()
+    void loadData()
+    const channel = supabase.channel('admin-players')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadData() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament' }, () => { void loadData() })
+      .subscribe()
     return () => { void supabase.removeChannel(channel) }
   }, [])
 
@@ -83,7 +94,10 @@ export function AdminPage() {
   async function savePlayer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const cleanName = name.trim()
-    if (!cleanName || (!editingId && players.length >= 32)) return
+    if (!cleanName || (!editingId && (players.length >= 32 || rosterLocked))) {
+      if (rosterLocked && !editingId) setMessage('The draw is locked. Reset the draw before changing roster membership.')
+      return
+    }
     setBusy(true)
     setMessage(null)
 
@@ -112,6 +126,10 @@ export function AdminPage() {
   }
 
   async function deletePlayer(player: Player) {
+    if (rosterLocked) {
+      setMessage('The draw is locked. Reset the draw before deleting a player.')
+      return
+    }
     if (!window.confirm(`Delete ${player.name}?`)) return
     const { error } = await supabase.from('players').delete().eq('id', player.id)
     if (error) setMessage(error.message)
@@ -131,11 +149,11 @@ export function AdminPage() {
     <main className="min-h-screen bg-chalk text-ink">
       <header className="flex items-center justify-between border-b border-ink/10 px-6 py-5 md:px-10">
         <div><p className="text-xs uppercase tracking-[0.28em] text-felt">GBC Solo</p><h1 className="font-display text-3xl">Tournament control</h1></div>
-        <div className="flex items-center gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
+        <div className="flex items-center gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/scoring">Scoring</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
       </header>
       <section className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:px-10">
         <div>
-          <div className="mb-6 flex items-end justify-between"><div><p className="text-sm uppercase tracking-[0.24em] text-felt">Registration</p><h2 className="font-display text-4xl">Add players</h2></div><strong className="text-2xl text-copper">{players.length} / 32</strong></div>
+          <div className="mb-6 flex items-end justify-between"><div><p className="text-sm uppercase tracking-[0.24em] text-felt">Registration</p><h2 className="font-display text-4xl">{rosterLocked ? 'Roster locked' : 'Add players'}</h2></div><strong className="text-2xl text-copper">{players.length} / 32</strong></div>
           <form className="space-y-4 rounded-2xl bg-white/70 p-6 shadow-sm" onSubmit={savePlayer}>
             <label className="block text-sm font-semibold">Player name<input className="mt-2 w-full rounded-lg border border-ink/15 bg-chalk px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-copper" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} /></label>
             {photoPreview && <img className="aspect-square w-40 rounded-lg object-cover" src={photoPreview} alt="Player preview" />}
@@ -146,11 +164,11 @@ export function AdminPage() {
             </div>
             {cameraOpen && <CameraCapture onConfirm={(captured) => { clearPhoto(); setPhoto(captured); setPhotoPreview(URL.createObjectURL(captured)); setCameraOpen(false) }} onCancel={() => setCameraOpen(false)} />}
             {message && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800">{message}</p>}
-            <div className="flex gap-2"><button className="rounded-lg bg-felt px-4 py-2.5 font-semibold text-chalk disabled:opacity-50" disabled={busy || (!editingId && players.length >= 32)}>{busy ? 'Saving...' : editingId ? 'Save changes' : 'Register player'}</button>{editingId && <button type="button" className="rounded-lg border border-ink/20 px-4 py-2.5" onClick={resetForm}>Cancel</button>}</div>
+            <div className="flex gap-2"><button className="rounded-lg bg-felt px-4 py-2.5 font-semibold text-chalk disabled:opacity-50" disabled={busy || (!editingId && (players.length >= 32 || rosterLocked))}>{busy ? 'Saving...' : editingId ? 'Save changes' : rosterLocked ? 'Roster locked' : 'Register player'}</button>{editingId && <button type="button" className="rounded-lg border border-ink/20 px-4 py-2.5" onClick={resetForm}>Cancel</button>}</div>
           </form>
           <p className="mt-4 text-sm text-ink/60">A phone used as a webcam, including DroidCam or Camo, appears in the camera dropdown. For a separate phone, use the QR option beside a player.</p>
         </div>
-        <div><h2 className="mb-4 font-display text-3xl">Registered players</h2><div className="grid gap-3 sm:grid-cols-2">{players.map((player, index) => <article className="flex gap-3 rounded-xl border border-ink/10 bg-white/70 p-3" key={player.id}>{player.photo_url ? <img className="h-20 w-20 rounded-lg object-cover" src={player.photo_url} alt="" /> : <div className="grid h-20 w-20 place-items-center rounded-lg bg-felt text-2xl text-chalk">{player.name.charAt(0).toUpperCase()}</div>}<div className="min-w-0 flex-1"><p className="text-xs text-ink/50">Player {index + 1}</p><h3 className="truncate font-semibold">{player.name}</h3><div className="mt-2 flex flex-wrap gap-2"><button className="text-xs font-semibold text-felt underline" onClick={() => editPlayer(player)}>Edit</button><button className="text-xs font-semibold text-red-700 underline" onClick={() => void deletePlayer(player)}>Delete</button><button className="text-xs font-semibold text-felt underline" onClick={() => void createRemoteLink(player.id)}>Phone QR</button></div></div></article>)}</div></div>
+        <div><h2 className="mb-4 font-display text-3xl">Registered players</h2>{rosterLocked && <p className="mb-4 rounded-lg bg-copper/20 px-3 py-2 text-sm text-ink/70">The draw is confirmed. You can edit photos or names, but adding and deleting players is disabled.</p>}<div className="grid gap-3 sm:grid-cols-2">{players.map((player, index) => <article className="flex gap-3 rounded-xl border border-ink/10 bg-white/70 p-3" key={player.id}>{player.photo_url ? <img className="h-20 w-20 rounded-lg object-cover" src={player.photo_url} alt="" /> : <div className="grid h-20 w-20 place-items-center rounded-lg bg-felt text-2xl text-chalk">{player.name.charAt(0).toUpperCase()}</div>}<div className="min-w-0 flex-1"><p className="text-xs text-ink/50">Player {index + 1}</p><h3 className="truncate font-semibold">{player.name}</h3><div className="mt-2 flex flex-wrap gap-2"><button className="text-xs font-semibold text-felt underline" onClick={() => editPlayer(player)}>Edit</button><button className="text-xs font-semibold text-red-700 underline disabled:cursor-not-allowed disabled:opacity-40" disabled={rosterLocked} onClick={() => void deletePlayer(player)}>Delete</button><button className="text-xs font-semibold text-felt underline" onClick={() => void createRemoteLink(player.id)}>Phone QR</button></div></div></article>)}</div></div>
       </section>
       {remoteLink && <div className="fixed inset-0 z-10 grid place-items-center bg-ink/70 p-6" role="dialog" aria-modal="true"><div className="w-full max-w-sm rounded-2xl bg-chalk p-6 text-center"><h2 className="font-display text-3xl">Scan with phone</h2><p className="mt-2 text-sm text-ink/60">This link expires after 10 minutes and works once.</p><div className="my-5 flex justify-center bg-white p-4"><QRCodeCanvas value={remoteLink} size={240} /></div><button className="rounded-lg border border-ink/20 px-4 py-2 font-semibold" onClick={() => setRemoteLink(null)}>Close</button></div></div>}
     </main>

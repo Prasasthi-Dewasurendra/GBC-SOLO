@@ -46,3 +46,30 @@ npm run dev
 6. For phone capture, click **Phone QR** beside a player. The QR link expires after 10 minutes and can be used once.
 
 For camera access, open the app over HTTPS in production or use `localhost` during development. A DroidCam or Camo phone camera appears in the same camera dropdown as any USB webcam.
+
+## Step 4 draw and Step 5 scoring
+
+1. Sync the latest files to the local checkout, then run `npm install`.
+2. Run the pure logic tests:
+
+```bash
+npm test
+```
+
+3. Register exactly 32 players, open `/admin/draw`, preview or redraw the bracket, and choose **Confirm draw**.
+4. Open `/admin/scoring`, select a match, and choose **Start match**.
+5. Use **+1 Rack** for scoring and **Undo** only to correct the current live match. When a player reaches the race target, confirm the completion dialog.
+6. The winner is advanced automatically. A completed match can only be reopened while its next-round match is still pending.
+
+## Fixing a roster changed after draw confirmation
+
+Run `supabase/lock_roster.sql` in **Supabase Dashboard -> SQL Editor** to prevent future player inserts or deletes after the draw is locked.
+
+If a player was already deleted from a confirmed bracket, repair that rehearsal bracket before continuing:
+
+```sql
+update public.tournament set state = 'registration', live_match_id = null where id = 1;
+delete from public.matches;
+```
+
+Then return to `/admin/draw`, redraw from the current 32-player roster, and confirm the new draw. This repair discards the old unplayed bracket, which is necessary because the deleted player can no longer be identified safely in its old match.
