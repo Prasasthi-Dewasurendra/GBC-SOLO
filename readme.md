@@ -87,3 +87,47 @@ If Realtime does not update, check **Supabase Dashboard -> Database -> Publicati
 - **Reset** requires two confirmations plus typing `RESET`. It clears matches and scores but keeps players.
 - Run `supabase/seed_rehearsal.sql` in the Supabase SQL Editor for a fresh 32-player rehearsal roster. It removes only prior `Practice Player` rows and all matches.
 - Admin, scoring, and display show an offline banner when the browser loses network access.
+
+## Step 8 deployment
+
+### Before deployment
+
+1. Commit and push the repository to GitHub.
+2. Confirm the production build locally:
+
+```bash
+npm install
+npm test
+npm run build
+```
+
+### Cloudflare Pages
+
+1. Open **Cloudflare Dashboard -> Workers & Pages -> Create application -> Pages -> Connect to Git**.
+2. Select this GitHub repository and the production branch.
+3. Use these build settings:
+	- Framework preset: `Vite`
+	- Build command: `npm run build`
+	- Build output directory: `dist`
+4. Open **Settings -> Environment variables** and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for Production.
+5. Deploy. The `public/_redirects` file keeps React routes such as `/admin/scoring` working after refresh.
+
+Vercel and Netlify can use the same `npm run build` and `dist` settings. The included `vercel.json` provides the SPA rewrite for Vercel.
+
+### Supabase production settings
+
+1. Open **Supabase Dashboard -> Authentication -> URL Configuration**.
+2. Set **Site URL** to the deployed HTTPS URL.
+3. Add the deployed URL to **Redirect URLs**, including the exact URL used for admin login.
+4. Confirm the `capture-photo` Edge Function is deployed and the `capture_sessions` migration is installed.
+
+### Final event checklist
+
+- Run a complete 32-player rehearsal from seed, draw, scoring, advancement, and final.
+- Test webcam capture and remote phone capture over the venue Wi-Fi.
+- Test the actual club screen in fullscreen at its real resolution.
+- Open `/display` in a separate browser or TV device and verify live score updates without refresh.
+- Export players and results before resetting any rehearsal data.
+- Confirm the admin email, Supabase URL, anon key, Edge Function, and Auth redirect URL.
+- Do not put a `service_role` key in frontend environment variables.
+- Open the Supabase project a few days before the event because free projects may pause after about one week of inactivity.
