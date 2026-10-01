@@ -73,3 +73,17 @@ delete from public.matches;
 ```
 
 Then return to `/admin/draw`, redraw from the current 32-player roster, and confirm the new draw. This repair discards the old unplayed bracket, which is necessary because the deleted player can no longer be identified safely in its old match.
+
+## Step 6 public display
+
+Open `/display` on the club screen. It reads players, matches, and tournament state through Supabase Realtime, so a live match should replace the rotating bracket/up-next scenes within about a second. The display also includes a fullscreen button and a reconnect banner.
+
+If Realtime does not update, check **Supabase Dashboard -> Database -> Publications -> supabase_realtime** and confirm `players`, `matches`, and `tournament` are enabled. Use `localhost` for a laptop test; use the deployed HTTPS URL for the TV or another device.
+
+## Step 7 event safety
+
+- Use **Export CSV** on `/admin` for the player list.
+- Use **Export results** on `/admin/scoring` for match results.
+- **Reset** requires two confirmations plus typing `RESET`. It clears matches and scores but keeps players.
+- Run `supabase/seed_rehearsal.sql` in the Supabase SQL Editor for a fresh 32-player rehearsal roster. It removes only prior `Practice Player` rows and all matches.
+- Admin, scoring, and display show an offline banner when the browser loses network access.

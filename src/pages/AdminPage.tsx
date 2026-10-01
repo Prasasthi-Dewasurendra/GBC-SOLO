@@ -1,6 +1,9 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { CameraCapture } from '../components/CameraCapture'
+import { ConnectionBanner } from '../components/ConnectionBanner'
+import { useConnectionStatus } from '../hooks/useConnectionStatus'
+import { downloadCsv } from '../lib/csv'
 import { resizeImage } from '../lib/image'
 import { supabase } from '../lib/supabase'
 
@@ -24,6 +27,7 @@ export function AdminPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [tournamentState, setTournamentState] = useState('registration')
   const rosterLocked = tournamentState !== 'registration'
+  const online = useConnectionStatus()
 
   useEffect(() => {
     async function loadData() {
@@ -145,11 +149,34 @@ export function AdminPage() {
     setRemoteLink(`${window.location.origin}/capture/${playerId}?token=${encodeURIComponent(data.token)}`)
   }
 
+  function exportPlayers() {
+    downloadCsv('gbc-solo-players.csv', ['Name', 'Seed', 'Photo URL', 'Registered At'], players.map((player) => [player.name, player.seed, player.photo_url, player.created_at]))
+  }
+
+  async function resetTournament() {
+    if (!window.confirm('Reset the tournament bracket and all match scores? Players will be kept.')) return
+    if (!window.confirm('This cannot be undone. Type OK in the next prompt to continue.')) return
+    const confirmation = window.prompt('Type RESET to confirm.')
+    if (confirmation !== 'RESET') {
+      setMessage('Reset cancelled.')
+      return
+    }
+    setBusy(true)
+    const { error: matchError } = await supabase.from('matches').delete().gte('round', 1)
+    if (matchError) setMessage(matchError.message)
+    else {
+      const { error } = await supabase.from('tournament').update({ state: 'registration', live_match_id: null }).eq('id', 1)
+      if (error) setMessage(error.message)
+      else setMessage('Tournament reset. The player roster is ready for a new draw.')
+    }
+    setBusy(false)
+  }
+
   return (
-    <main className="min-h-screen bg-chalk text-ink">
+    <main className="min-h-screen bg-chalk text-ink"><ConnectionBanner online={online} />
       <header className="flex items-center justify-between border-b border-ink/10 px-6 py-5 md:px-10">
         <div><p className="text-xs uppercase tracking-[0.28em] text-felt">GBC Solo</p><h1 className="font-display text-3xl">Tournament control</h1></div>
-        <div className="flex items-center gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/scoring">Scoring</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
+        <div className="flex flex-wrap items-center justify-end gap-2"><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/draw">Draw</a><a className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" href="/admin/scoring">Scoring</a><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold" onClick={exportPlayers}>Export CSV</button><button className="rounded-lg border border-red-700/30 px-4 py-2 text-sm font-semibold text-red-700" onClick={() => void resetTournament()} disabled={busy}>Reset</button><button className="rounded-lg border border-ink/20 px-4 py-2 text-sm font-semibold transition hover:bg-ink hover:text-chalk" onClick={signOut}>Sign out</button></div>
       </header>
       <section className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:px-10">
         <div>
