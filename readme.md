@@ -110,7 +110,7 @@ npm run build
 	- Build command: `npm run build`
 	- Build output directory: `dist`
 4. Open **Settings -> Environment variables** and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for Production.
-5. Deploy. The `public/_redirects` file keeps React routes such as `/admin/scoring` working after refresh.
+5. Deploy. Cloudflare's SPA handling keeps React routes such as `/admin/scoring` working after refresh.
 
 Vercel and Netlify can use the same `npm run build` and `dist` settings. The included `vercel.json` provides the SPA rewrite for Vercel.
 

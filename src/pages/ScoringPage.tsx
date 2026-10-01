@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Minus, Plus, Trophy } from 'lucide-react'
+import { Minus, Plus, Radio, Trophy } from 'lucide-react'
 import { Bracket } from '../components/Bracket'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { LogoTitle } from '../components/brand/LogoTitle'
