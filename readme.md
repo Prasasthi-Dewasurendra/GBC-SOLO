@@ -1,4 +1,4 @@
-# GBC Solo Tournament
+# Galle Billiards Club Tournament
 
 React + Vite + TypeScript foundation for the Billiard Tournament Management System.
 
