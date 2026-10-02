@@ -5,8 +5,10 @@ export type BracketPlayer = {
 }
 
 export type BracketMatch = {
+  id?: string
   round: number
   slot: number
+  match_number: number
   player1_id: string | null
   player2_id: string | null
   best_of: 3 | 5
@@ -37,6 +39,23 @@ export function raceTarget(bestOf: number): number {
   return Math.ceil(bestOf / 2)
 }
 
+export function getMatchNumber(round: number, slot: number): number {
+  switch (round) {
+    case 1:
+      return slot + 1
+    case 2:
+      return 17 + slot
+    case 3:
+      return 25 + slot
+    case 4:
+      return 29 + slot
+    case 5:
+      return 31
+    default:
+      return 0
+  }
+}
+
 export function buildBracket(players: readonly BracketPlayer[], random: RandomSource = cryptoRandom): BracketMatch[] {
   if (players.length !== 32) throw new Error('A draw requires exactly 32 players')
 
@@ -49,6 +68,7 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
       matches.push({
         round,
         slot,
+        match_number: getMatchNumber(round, slot),
         player1_id: round === 1 ? shuffled[slot * 2].id : null,
         player2_id: round === 1 ? shuffled[slot * 2 + 1].id : null,
         best_of: round === 5 ? 5 : 3,

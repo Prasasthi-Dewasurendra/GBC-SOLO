@@ -28,6 +28,7 @@ describe('buildBracket', () => {
   it('creates 31 matches and pairs all 32 players in round one', () => {
     const bracket = buildBracket(players, predictableRandom)
     expect(bracket).toHaveLength(31)
+    expect(bracket.map((match) => match.match_number)).toEqual(Array.from({ length: 31 }, (_, index) => index + 1))
     expect(bracket.filter((match) => match.round === 1)).toHaveLength(16)
     expect(bracket.filter((match) => match.round === 5)[0].best_of).toBe(5)
     expect(bracket.filter((match) => match.round < 5).every((match) => match.best_of === 3)).toBe(true)

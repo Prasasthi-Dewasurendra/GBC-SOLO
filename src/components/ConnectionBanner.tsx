@@ -3,7 +3,14 @@ type ConnectionBannerProps = {
   message?: string
 }
 
-export function ConnectionBanner({ online, message = 'Connection lost. Changes may not be saved.' }: ConnectionBannerProps) {
+export function ConnectionBanner({
+  online,
+  message = 'Connection lost. Changes may not be saved.',
+}: ConnectionBannerProps) {
   if (online) return null
-  return <div className="fixed left-0 right-0 top-0 z-40 bg-goldDark px-4 py-2 text-center text-sm font-semibold text-warm">{message}</div>
+  return (
+    <div className="fixed left-0 right-0 top-0 z-50 border-b border-white/20 bg-[#121212] px-4 py-2 text-center text-xs font-semibold text-[#F5F5F5]">
+      {message}
+    </div>
+  )
 }

@@ -106,18 +106,18 @@ export function CameraCapture({ onConfirm, onCancel }: CameraCaptureProps) {
   }
 
   return (
-    <Card className="space-y-4 p-4">
+    <Card className="space-y-4 border-white/10 bg-[#121212] p-4 text-[#F5F5F5]">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm font-semibold" htmlFor="camera-device">Camera</label>
-        <select id="camera-device" className="min-w-0 flex-1 rounded-xl border border-gold/20 bg-ink px-3 py-2 text-sm text-warm" value={deviceId} onChange={(event) => setDeviceId(event.target.value)} disabled={Boolean(photo)}>
+        <label className="text-sm font-semibold text-[#A3A3A3]" htmlFor="camera-device">Camera</label>
+        <select id="camera-device" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 text-sm text-[#F5F5F5] focus:outline-none focus:ring-1 focus:ring-white/40" value={deviceId} onChange={(event) => setDeviceId(event.target.value)} disabled={Boolean(photo)}>
           {devices.length === 0 && <option value="">No cameras found</option>}
           {devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}
         </select>
       </div>
-      <div className="overflow-hidden rounded-xl border border-gold/20 bg-ink">
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0A0A0A]">
         {preview ? <img className="mx-auto aspect-square w-full max-w-sm object-cover" src={preview} alt="Captured player preview" /> : <video ref={videoRef} className="mx-auto aspect-square w-full max-w-sm object-cover" autoPlay muted playsInline />}
       </div>
-      <p className="text-sm text-muted">{message}</p>
+      <p className="text-sm text-[#A3A3A3]">{message}</p>
       <div className="flex flex-wrap gap-2">
         {!photo && <Button type="button" variant="secondary" onClick={() => void capture()} disabled={busy || !deviceId}>{busy ? 'Preparing...' : 'Capture'}</Button>}
         {photo && <Button type="button" variant="outline" onClick={retake}>Retake</Button>}

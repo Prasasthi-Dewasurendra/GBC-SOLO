@@ -1,123 +1,659 @@
 import confetti from 'canvas-confetti'
 import { Clock3, Maximize, Trophy } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bracket } from '../components/Bracket'
-import { MatchCard, type MatchCardData } from '../components/MatchCard'
-import { ConnectionBanner } from '../components/ConnectionBanner'
-import { LiveBadge } from '../components/brand/LiveBadge'
-import { LogoTitle } from '../components/brand/LogoTitle'
 import { PlayerAvatar } from '../components/brand/PlayerAvatar'
-import { Badge } from '../components/ui/Badge'
-import { Card } from '../components/ui/Card'
-import { useConnectionStatus } from '../hooks/useConnectionStatus'
-import type { BracketMatch, BracketPlayer } from '../lib/tournament'
+import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
-type DisplayMatch = BracketMatch & { id: string; p1_racks: number; p2_racks: number }
+type DisplayMatch = BracketMatch & {
+  id: string
+  p1_racks: number
+  p2_racks: number
+}
 type TournamentState = 'registration' | 'drawn' | 'live' | 'finished'
-type Scene = 'live' | 'bracket' | 'up-next' | 'champion'
-const sceneNames: Record<Scene, string> = { live: 'Live match', bracket: 'Full bracket', 'up-next': 'Up next', champion: 'Champion' }
 
 export function DisplayPage() {
   const [players, setPlayers] = useState<BracketPlayer[]>([])
   const [matches, setMatches] = useState<DisplayMatch[]>([])
   const [tournamentState, setTournamentState] = useState<TournamentState>('registration')
-  const [scene, setScene] = useState<Scene>('bracket')
-  const [connection, setConnection] = useState('connecting')
-  const [error, setError] = useState<string | null>(null)
-  const [reveal, setReveal] = useState(false)
+  const [activeRotatedScene, setActiveRotatedScene] = useState<'bracket' | 'tables'>('bracket')
   const [clock, setClock] = useState(() => new Date())
-  const online = useConnectionStatus()
-  const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
-  const liveMatches = matches.filter((match) => match.status === 'live' && match.table_number)
-  const roundOneMatches = matches.filter((match) => match.round === 1)
-  const roundOneComplete = roundOneMatches.length === 16 && roundOneMatches.every((match) => match.status === 'done')
-  const finalMatch = matches.find((match) => match.round === 5)
-  const champion = finalMatch?.winner_id ? playerById.get(finalMatch.winner_id) : undefined
+  const prevLiveMatchesCountRef = useRef(0)
+  const sceneLockUntilRef = useRef<number>(0)
 
-  async function loadDisplay() {
-    const [{ data: playerData, error: playerError }, { data: matchData, error: matchError }, { data: tournamentData, error: tournamentError }] = await Promise.all([
+  const playerById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
+
+  const roundOneMatches = useMemo(
+    () => matches.filter((m) => m.round === 1).sort((a, b) => a.slot - b.slot),
+    [matches]
+  )
+  const roundOneComplete = useMemo(
+    () => roundOneMatches.length === 16 && roundOneMatches.every((m) => m.status === 'done'),
+    [roundOneMatches]
+  )
+
+  const finalMatch = useMemo(() => matches.find((m) => m.round === 5), [matches])
+  const champion = useMemo(
+    () => (finalMatch?.status === 'done' && finalMatch?.winner_id ? playerById.get(finalMatch.winner_id) : null),
+    [finalMatch, playerById]
+  )
+
+  async function loadData() {
+    const [{ data: playerData }, { data: matchData }, { data: tournamentData }] = await Promise.all([
       supabase.from('players').select('id, name, photo_url').order('created_at'),
-      supabase.from('matches').select('id, round, slot, player1_id, player2_id, p1_racks, p2_racks, table_number, best_of, status, winner_id').order('round').order('slot'),
+      supabase
+        .from('matches')
+        .select('id, round, slot, match_number, player1_id, player2_id, p1_racks, p2_racks, table_number, best_of, status, winner_id')
+        .order('round')
+        .order('slot'),
       supabase.from('tournament').select('state, live_match_id').eq('id', 1).single(),
     ])
-    if (playerError || matchError || tournamentError) { setError(playerError?.message ?? matchError?.message ?? tournamentError?.message ?? 'The display could not load tournament data.'); return }
-    setError(null)
-    const nextMatches = (matchData ?? []) as DisplayMatch[]
-    const nextLiveMatches = nextMatches.filter((match) => match.status === 'live' && match.table_number)
-    setPlayers((playerData ?? []) as BracketPlayer[])
-    setMatches(nextMatches)
-    setTournamentState(tournamentData.state as TournamentState)
-    if (nextLiveMatches.length) setScene('live')
-    if (tournamentData.state === 'finished') setScene('champion')
-    if (!nextLiveMatches.length && tournamentData.state === 'live') setScene('up-next')
+
+    if (playerData) setPlayers(playerData as BracketPlayer[])
+    if (tournamentData) setTournamentState(tournamentData.state as TournamentState)
+    if (matchData) {
+      const enriched = (matchData as DisplayMatch[]).map((m) => ({
+        ...m,
+        match_number: m.match_number ?? getMatchNumber(m.round, m.slot),
+      }))
+
+      // Check if a match went live after Round 1
+      const isR1Done = enriched.filter((m) => m.round === 1).length === 16 && enriched.filter((m) => m.round === 1).every((m) => m.status === 'done')
+      const postR1LiveCount = enriched.filter((m) => m.round > 1 && m.status === 'live').length
+
+      if (isR1Done && postR1LiveCount > prevLiveMatchesCountRef.current) {
+        // Trigger Scene C for at least 30 seconds
+        setActiveRotatedScene('tables')
+        sceneLockUntilRef.current = Date.now() + 30000
+      }
+      prevLiveMatchesCountRef.current = postR1LiveCount
+      setMatches(enriched)
+    }
   }
 
+  // Realtime subscription
   useEffect(() => {
-    void loadDisplay()
-    const channel = supabase.channel('public-display')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadDisplay() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => { void loadDisplay() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament' }, () => { void loadDisplay() })
-      .subscribe((status) => setConnection(status === 'SUBSCRIBED' ? 'connected' : status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? 'reconnecting' : 'connecting'))
-    return () => { void supabase.removeChannel(channel) }
+    void loadData()
+    const channel = supabase
+      .channel('display-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
+        void loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        void loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament' }, () => {
+        void loadData()
+      })
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
   }, [])
 
+  // Clock timer
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
 
+  // Confetti on champion
   useEffect(() => {
-    if (!matches.length) return
-    setReveal(true)
-    const timer = window.setTimeout(() => setReveal(false), 5000)
-    return () => window.clearTimeout(timer)
-  }, [matches.length])
+    if (champion) {
+      void confetti({
+        particleCount: 180,
+        spread: 100,
+        origin: { y: 0.55 },
+        colors: ['#C9A24B', '#F5F5F5', '#FFFFFF'],
+      })
+    }
+  }, [champion])
 
+  // Post Round 1 rotation: rotate Scene B (Bracket) and Scene C (Tables) every 20 seconds
   useEffect(() => {
-    if (tournamentState !== 'finished' || !champion) return
-    void confetti({ particleCount: 160, spread: 90, origin: { y: 0.55 }, colors: ['#B8902E', '#D4AF37', '#F2D675', '#0F5A3F', '#34D399'] })
-  }, [tournamentState, champion])
+    if (!roundOneComplete || champion) return
 
-  useEffect(() => {
-    if (liveMatches.length || tournamentState === 'finished') return
-    const scenes: Scene[] = ['bracket', 'up-next']
-    let index = scenes.indexOf(scene)
-    const timer = window.setInterval(() => { index = (index + 1) % scenes.length; setScene(scenes[index]) }, 12000)
-    return () => window.clearInterval(timer)
-  }, [liveMatches.length, scene, tournamentState])
+    const interval = window.setInterval(() => {
+      // If locked into Scene C due to match going live, wait until timer expires
+      if (Date.now() < sceneLockUntilRef.current) {
+        setActiveRotatedScene('tables')
+        return
+      }
 
-  function nameFor(id: string | null) { return id ? playerById.get(id)?.name ?? 'Unknown player' : 'TBD' }
-  function photoFor(id: string | null) { return id ? playerById.get(id)?.photo_url : null }
-  async function enterFullscreen() { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen() }
+      setActiveRotatedScene((prev) => (prev === 'bracket' ? 'tables' : 'bracket'))
+    }, 20000)
 
-  function asCard(match: DisplayMatch): MatchCardData {
-    return { ...match, player1: match.player1_id ? playerById.get(match.player1_id) : { name: 'TBD' }, player2: match.player2_id ? playerById.get(match.player2_id) : { name: 'TBD' } }
+    return () => window.clearInterval(interval)
+  }, [roundOneComplete, champion])
+
+  function nameFor(id: string | null) {
+    return id ? playerById.get(id)?.name ?? 'Unknown player' : 'TBD'
   }
 
-  function renderPlayer(id: string | null, racks: number) {
-    return <div className="flex min-w-0 flex-1 flex-col items-center gap-5 text-center"><PlayerAvatar photoUrl={photoFor(id)} name={nameFor(id)} size="xl" ring="green" state={id ? 'normal' : 'tbd'} /><h2 className="max-w-full truncate font-display text-5xl text-warm md:text-7xl" title={nameFor(id)}>{nameFor(id)}</h2><strong className="font-display text-8xl leading-none tabular-nums text-goldLight md:text-[10rem]">{racks}</strong></div>
+  function photoFor(id: string | null) {
+    return id ? playerById.get(id)?.photo_url : null
   }
 
-  function liveScene() {
-    if (!liveMatches.length) return null
-    return <section className="flex min-h-[calc(100vh-8rem)] flex-col justify-center"><div className="flex items-center justify-center gap-3"><LiveBadge /><Badge tone="live">{liveMatches.length} tables live</Badge></div><h1 className="mt-5 text-center font-display text-4xl text-muted">Live matches</h1><div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">{liveMatches.map((match) => <div className="relative" key={match.id}><span className="absolute left-4 top-4 z-10 rounded-full border border-gold/30 bg-ink/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-goldLight">Table {match.table_number}</span><MatchCard match={asCard(match)} variant="display" /></div>)}</div></section>
+  async function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      await document.exitFullscreen().catch(() => {})
+    }
   }
 
-  function upNextScene() {
-    const upcoming = matches.filter((match) => match.status === 'pending' && match.player1_id && match.player2_id).slice(0, 3)
-    return <section className="mx-auto max-w-6xl py-12"><p className="text-xs uppercase tracking-[0.35em] text-gold">Coming up</p><h1 className="mt-3 font-display text-7xl">Up next</h1><div className="mt-10 grid gap-5">{upcoming.length ? upcoming.map((match) => <MatchCard key={match.id} match={asCard(match)} variant="display" />) : <p className="text-xl text-muted">The next matches will appear when the draw is ready.</p>}</div></section>
+  // -------------------------------------------------------------
+  // WAITING / REGISTRATION SCENE (before draw confirmed)
+  // -------------------------------------------------------------
+  if (tournamentState === 'registration' || matches.length === 0) {
+    return (
+      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-8 text-[#F5F5F5] flex flex-col justify-between select-none">
+        <header className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div>
+            <h1 className="font-serif text-3xl font-bold tracking-wide text-[#F5F5F5]">
+              Galle Billiards Club SOLO Tournament
+            </h1>
+            <p className="text-xs uppercase tracking-widest text-[#A3A3A3]">
+              Player Registration & Warmup
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-[#A3A3A3]">
+            <Clock3 size={16} />
+            <span className="font-mono tabular-nums">
+              {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+            <button
+              onClick={() => void toggleFullscreen()}
+              className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
+            >
+              <Maximize size={16} />
+            </button>
+          </div>
+        </header>
+
+        <section className="my-auto flex flex-col items-center text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs uppercase tracking-widest text-[#A3A3A3]">
+            Registration Active · 32 Players Single Elimination
+          </div>
+          <h2 className="font-serif text-6xl font-bold text-[#F5F5F5]">Tournament Draw Imminent</h2>
+          <p className="mt-3 text-lg text-[#A3A3A3]">
+            {players.length} / 32 players registered. Matches will begin once the draw is confirmed.
+          </p>
+
+          <div className="mt-10 grid max-w-6xl grid-cols-8 gap-4">
+            {players.slice(0, 32).map((player, idx) => (
+              <div key={player.id} className="flex flex-col items-center">
+                <PlayerAvatar name={player.name} photoUrl={player.photo_url} size="md" />
+                <span className="mt-2 truncate max-w-[100px] text-xs font-medium text-[#A3A3A3]" title={player.name}>
+                  {player.name}
+                </span>
+              </div>
+            ))}
+            {Array.from({ length: Math.max(0, 32 - players.length) }).map((_, i) => (
+              <div key={`empty-${i}`} className="flex flex-col items-center opacity-30">
+                <div className="h-14 w-14 rounded-full border border-dashed border-white/20 bg-white/5 flex items-center justify-center text-xs">
+                  {players.length + i + 1}
+                </div>
+                <span className="mt-2 text-xs text-[#A3A3A3]">Waiting</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <footer className="text-center text-xs uppercase tracking-widest text-[#A3A3A3]/60">
+          Official Club Broadcast Display · 1920x1080
+        </footer>
+      </main>
+    )
   }
 
-  function championScene() {
-    return <section className="grid min-h-[calc(100vh-8rem)] place-items-center text-center"><div className="relative z-10">{champion?.photo_url ? <img className="mx-auto h-80 w-80 rounded-full border-8 border-gold object-cover shadow-gold" src={champion.photo_url} alt={champion.name} /> : <PlayerAvatar name={champion?.name ?? 'Champion'} size="xl" ring="gold" state="winner" />}<Trophy className="mx-auto mt-8 text-goldLight" size={52} /><p className="mt-5 text-sm uppercase tracking-[0.5em] text-gold">Champion</p><h1 className="gold-text mt-3 font-display text-7xl md:text-9xl">{champion?.name ?? 'Champion'}</h1></div></section>
+  // -------------------------------------------------------------
+  // SCENE D: CHAMPION (Final complete)
+  // -------------------------------------------------------------
+  if (champion) {
+    return (
+      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-10 text-[#F5F5F5] flex flex-col items-center justify-center text-center relative select-none">
+        <button
+          onClick={() => void toggleFullscreen()}
+          className="absolute right-6 top-6 rounded p-2 text-[#A3A3A3] hover:text-[#F5F5F5]"
+        >
+          <Maximize size={18} />
+        </button>
+
+        <div className="relative z-10 flex flex-col items-center">
+          <Trophy size={64} className="text-[#C9A24B] mb-4 animate-bounce" />
+          <div className="rounded-full border-4 border-[#C9A24B] p-2 bg-[#121212]">
+            {champion.photo_url ? (
+              <img
+                src={champion.photo_url}
+                alt={champion.name}
+                className="h-64 w-64 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-64 w-64 rounded-full bg-[#121212] flex items-center justify-center font-serif text-7xl text-[#F5F5F5]">
+                {champion.name.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          <p className="mt-8 text-sm font-bold uppercase tracking-[0.4em] text-[#C9A24B]">
+            Tournament Champion
+          </p>
+          <h1 className="mt-3 font-serif text-7xl font-bold tracking-tight text-[#F5F5F5] md:text-8xl">
+            {champion.name}
+          </h1>
+          <p className="mt-4 text-base text-[#A3A3A3]">
+            Galle Billiards Club SOLO Tournament Winner
+          </p>
+        </div>
+      </main>
+    )
   }
 
-  function bracketScene() {
-    if (!roundOneComplete) return <section className="mt-8"><div className="mb-5 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[0.35em] text-gold">Round 1 · 16 matches</p><h1 className="font-display text-6xl">Round of 32</h1></div><Badge tone="pending">Advancement in progress</Badge></div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{roundOneMatches.map((match) => <MatchCard key={match.id} match={asCard(match)} variant="compact" />)}</div></section>
-    return <section className="mt-8"><div className="mb-5 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[0.35em] text-gold">Round 1 complete</p><h1 className="font-display text-6xl">The full draw</h1></div><Badge tone="done">16 winners advanced</Badge></div><Card className="overflow-hidden bg-surface/60 p-5"><div className="overflow-x-auto"><Bracket matches={matches} players={players} /></div></Card></section>
+  // -------------------------------------------------------------
+  // SCENE A: ROUND 1 GRID (16 matches, 4x4 grid, fixed until R1 finishes)
+  // -------------------------------------------------------------
+  if (!roundOneComplete) {
+    return (
+      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-4 text-[#F5F5F5] flex flex-col select-none">
+        {/* Header Bar */}
+        <header className="flex shrink-0 items-center justify-between border-b border-white/10 pb-3 mb-3">
+          <div className="flex items-center gap-4">
+            <h1 className="font-serif text-2xl font-bold tracking-wide text-[#F5F5F5]">
+              Galle Billiards Club SOLO Tournament
+            </h1>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-[#A3A3A3]">
+              Round 1 - Best of 3
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
+              <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
+              LIVE
+            </span>
+          </div>
+
+          {/* Table Chips: T1..T4 */}
+          <div className="hidden lg:flex items-center gap-2">
+            {[1, 2, 3, 4].map((t) => {
+              const liveOnTable = matches.find((m) => m.status === 'live' && m.table_number === t)
+              return (
+                <div
+                  key={t}
+                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                    liveOnTable
+                      ? 'border-[#1E8F63] bg-[#1E8F63]/10 text-[#1E8F63]'
+                      : 'border-white/10 bg-white/5 text-[#A3A3A3]'
+                  }`}
+                >
+                  <span className="font-bold">T{t}:</span>
+                  {liveOnTable ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#1E8F63]" />
+                      M{liveOnTable.match_number} LIVE
+                    </span>
+                  ) : (
+                    <span>Free</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Clock & Fullscreen */}
+          <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
+            <Clock3 size={15} />
+            <span className="font-mono tabular-nums text-sm">
+              {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+            <button
+              onClick={() => void toggleFullscreen()}
+              className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
+            >
+              <Maximize size={15} />
+            </button>
+          </div>
+        </header>
+
+        {/* 4x4 Grid of Round 1 Cards */}
+        <div className="grid flex-1 grid-cols-4 grid-rows-4 gap-3 min-h-0">
+          {roundOneMatches.map((match) => {
+            const p1 = playerById.get(match.player1_id ?? '')
+            const p2 = playerById.get(match.player2_id ?? '')
+            const isLive = match.status === 'live'
+            const isDone = match.status === 'done'
+
+            const p1Winner = isDone && match.winner_id === match.player1_id
+            const p2Winner = isDone && match.winner_id === match.player2_id
+
+            return (
+              <div
+                key={match.id}
+                className={`rounded-lg border bg-[#121212] p-2.5 flex flex-col justify-between ${
+                  isLive ? 'border-[#1E8F63]' : 'border-white/10'
+                }`}
+              >
+                {/* Card Top: Match Number, Table badge, Status */}
+                <div className="flex items-center justify-between text-xs pb-1.5 border-b border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#F5F5F5]">M{match.match_number}</span>
+                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-[#A3A3A3]">
+                      {match.table_number ? `T${match.table_number}` : 'Table TBA'}
+                    </span>
+                  </div>
+                  <div>
+                    {isLive ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1E8F63]">
+                        <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#1E8F63]" />
+                        LIVE
+                      </span>
+                    ) : isDone ? (
+                      <span className="text-[10px] font-semibold text-[#A3A3A3]">DONE</span>
+                    ) : (
+                      <span className="text-[10px] text-[#A3A3A3]/60">PENDING</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Player 1 Row */}
+                <div
+                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${
+                    p1Winner ? 'bg-white/5' : ''
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
+                      {p1?.photo_url ? (
+                        <img
+                          src={p1.photo_url}
+                          alt={nameFor(match.player1_id)}
+                          className={`h-full w-full object-cover ${
+                            isDone && !p1Winner ? 'opacity-40 grayscale' : ''
+                          }`}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
+                          {nameFor(match.player1_id).slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`truncate text-xl font-semibold tracking-tight ${
+                        p1Winner
+                          ? 'text-[#F5F5F5]'
+                          : isDone
+                            ? 'text-[#A3A3A3]'
+                            : 'text-[#F5F5F5]'
+                      }`}
+                      title={nameFor(match.player1_id)}
+                    >
+                      {nameFor(match.player1_id)}
+                    </span>
+                  </div>
+                  <span
+                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${
+                      p1Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+                    }`}
+                  >
+                    {match.p1_racks}
+                  </span>
+                </div>
+
+                {/* Player 2 Row */}
+                <div
+                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${
+                    p2Winner ? 'bg-white/5' : ''
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
+                      {p2?.photo_url ? (
+                        <img
+                          src={p2.photo_url}
+                          alt={nameFor(match.player2_id)}
+                          className={`h-full w-full object-cover ${
+                            isDone && !p2Winner ? 'opacity-40 grayscale' : ''
+                          }`}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
+                          {nameFor(match.player2_id).slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`truncate text-xl font-semibold tracking-tight ${
+                        p2Winner
+                          ? 'text-[#F5F5F5]'
+                          : isDone
+                            ? 'text-[#A3A3A3]'
+                            : 'text-[#F5F5F5]'
+                      }`}
+                      title={nameFor(match.player2_id)}
+                    >
+                      {nameFor(match.player2_id)}
+                    </span>
+                  </div>
+                  <span
+                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${
+                      p2Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+                    }`}
+                  >
+                    {match.p2_racks}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </main>
+    )
   }
 
-  return <main className={`min-h-screen overflow-hidden bg-felt-gradient px-6 py-5 text-warm ${reveal ? 'draw-reveal' : ''}`}><ConnectionBanner online={online} message="Network offline. Waiting to reconnect..." />{connection !== 'connected' && <div className="fixed left-0 right-0 top-9 z-30 bg-goldDark px-4 py-2 text-center text-xs font-semibold text-warm">{connection === 'reconnecting' ? 'Realtime reconnecting...' : 'Connecting to tournament data...'}</div>}<header className="mx-auto flex max-w-[1800px] items-center justify-between border-b border-gold/20 pb-4"><LogoTitle /><div className="hidden items-center gap-3 text-muted md:flex"><Clock3 size={17} className="text-gold" /><span className="tabular-nums">{clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span className="text-gold/40">·</span><span className="text-xs uppercase tracking-[0.2em]">{sceneNames[scene]}</span></div><button className="inline-flex items-center gap-2 rounded-xl border border-gold/25 px-3 py-2 text-sm text-goldLight transition hover:bg-gold/10" onClick={() => void enterFullscreen()}><Maximize size={16} /> Fullscreen</button></header><div className="mx-auto max-w-[1800px]">{error && <p className="mt-5 rounded-xl border border-goldDark/50 bg-goldDark/15 px-4 py-3 text-goldLight">{error}</p>}{scene === 'live' && liveScene()}{scene === 'champion' && championScene()}{scene === 'up-next' && upNextScene()}{scene === 'bracket' && bracketScene()}{!matches.length && <section className="grid min-h-[calc(100vh-9rem)] place-items-center text-center"><div><LogoTitle /><h1 className="gold-text mt-10 font-display text-7xl">Registration open</h1><p className="mt-4 text-xl text-muted">The tournament bracket will appear here.</p></div></section>}</div></main>
+  // -------------------------------------------------------------
+  // POST-ROUND 1 ROTATION: SCENE B (BRACKET) OR SCENE C (TABLES)
+  // -------------------------------------------------------------
+  return (
+    <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-4 text-[#F5F5F5] flex flex-col select-none transition-opacity duration-300">
+      {/* Header Bar */}
+      <header className="flex shrink-0 items-center justify-between border-b border-white/10 pb-3 mb-3">
+        <div className="flex items-center gap-4">
+          <h1 className="font-serif text-2xl font-bold tracking-wide text-[#F5F5F5]">
+            Galle Billiards Club SOLO Tournament
+          </h1>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-[#A3A3A3]">
+            {activeRotatedScene === 'bracket' ? 'Championship Bracket' : 'Live Club Tables'}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
+            <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
+            LIVE
+          </span>
+        </div>
+
+        {/* Scene Indicator / Rotation info */}
+        <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
+          <span className="rounded border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wider text-[#A3A3A3]">
+            Auto-rotating: {activeRotatedScene === 'bracket' ? 'Bracket' : 'Tables'} (20s)
+          </span>
+          <Clock3 size={15} />
+          <span className="font-mono tabular-nums text-sm">
+            {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
+          <button
+            onClick={() => void toggleFullscreen()}
+            className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
+          >
+            <Maximize size={15} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Body: Switch between Scene B (Bracket) and Scene C (Tables) */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {activeRotatedScene === 'bracket' ? (
+          // Scene B: Knockout Bracket (two-halves meeting in centre)
+          <div className="flex-1 min-h-0 py-1">
+            <Bracket
+              matches={matches.filter((m) => m.round > 1)}
+              players={players}
+              layout="two-halves"
+            />
+          </div>
+        ) : (
+          // Scene C: Tables (4 Cards: Table 1 to Table 4)
+          <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-4">
+            {[1, 2, 3, 4].map((tableNum) => {
+              const liveMatch = matches.find(
+                (m) => m.status === 'live' && m.table_number === tableNum
+              )
+              const nextPending = !liveMatch
+                ? matches.find(
+                    (m) => m.status === 'pending' && m.table_number === tableNum && m.player1_id && m.player2_id
+                  )
+                : null
+
+              const matchToShow = liveMatch ?? nextPending
+              const isLive = Boolean(liveMatch)
+              const isUpNext = Boolean(!liveMatch && nextPending)
+              const isFinal = matchToShow?.round === 5
+
+              const p1 = matchToShow?.player1_id ? playerById.get(matchToShow.player1_id) : null
+              const p2 = matchToShow?.player2_id ? playerById.get(matchToShow.player2_id) : null
+
+              const borderClass = isLive
+                ? 'border-[#1E8F63]'
+                : isFinal
+                  ? 'border-[#C9A24B]'
+                  : 'border-white/10'
+
+              return (
+                <div
+                  key={tableNum}
+                  className={`rounded-xl border bg-[#121212] p-5 flex flex-col justify-between ${borderClass}`}
+                >
+                  {/* Table Header */}
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="font-serif text-2xl font-bold text-[#F5F5F5]">
+                        Table {tableNum}
+                      </span>
+                      {matchToShow && (
+                        <>
+                          <span className="rounded bg-white/10 px-2.5 py-0.5 text-xs font-bold text-[#F5F5F5]">
+                            M{matchToShow.match_number}
+                          </span>
+                          <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
+                            {matchToShow.round === 5
+                              ? 'Championship Final'
+                              : matchToShow.round === 4
+                                ? 'Semi Final'
+                                : matchToShow.round === 3
+                                  ? 'Quarter Final'
+                                  : 'Round of 16'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <div>
+                      {isLive ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-bold text-[#1E8F63]">
+                          <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
+                          LIVE MATCH
+                        </span>
+                      ) : isUpNext ? (
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
+                          Up next
+                        </span>
+                      ) : (
+                        <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
+                          Table available
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Match Body */}
+                  {matchToShow ? (
+                    <div className="my-auto flex items-center justify-between gap-6 px-6">
+                      {/* Player 1 */}
+                      <div className="flex flex-1 flex-col items-center text-center min-w-0">
+                        <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-white/10 bg-[#0A0A0A]">
+                          {p1?.photo_url ? (
+                            <img
+                              src={p1.photo_url}
+                              alt={nameFor(matchToShow.player1_id)}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-bold text-2xl text-[#A3A3A3]">
+                              {nameFor(matchToShow.player1_id).slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <h3
+                          className="mt-3 truncate max-w-full text-2xl font-bold text-[#F5F5F5]"
+                          title={nameFor(matchToShow.player1_id)}
+                        >
+                          {nameFor(matchToShow.player1_id)}
+                        </h3>
+                        <div className="mt-2 font-serif text-6xl font-bold tabular-nums text-[#F5F5F5]">
+                          {matchToShow.p1_racks}
+                        </div>
+                      </div>
+
+                      {/* VS divider */}
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="font-serif text-2xl italic text-[#A3A3A3]/40">vs</span>
+                        <span className="mt-2 text-xs uppercase tracking-widest text-[#A3A3A3]">
+                          {matchToShow.round === 5 ? 'Race to 3' : 'Race to 2'}
+                        </span>
+                      </div>
+
+                      {/* Player 2 */}
+                      <div className="flex flex-1 flex-col items-center text-center min-w-0">
+                        <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-white/10 bg-[#0A0A0A]">
+                          {p2?.photo_url ? (
+                            <img
+                              src={p2.photo_url}
+                              alt={nameFor(matchToShow.player2_id)}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-bold text-2xl text-[#A3A3A3]">
+                              {nameFor(matchToShow.player2_id).slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <h3
+                          className="mt-3 truncate max-w-full text-2xl font-bold text-[#F5F5F5]"
+                          title={nameFor(matchToShow.player2_id)}
+                        >
+                          {nameFor(matchToShow.player2_id)}
+                        </h3>
+                        <div className="mt-2 font-serif text-6xl font-bold tabular-nums text-[#F5F5F5]">
+                          {matchToShow.p2_racks}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="my-auto py-12 text-center text-[#A3A3A3]">
+                      <p className="text-xl font-medium">Table available</p>
+                      <p className="mt-1 text-xs text-[#A3A3A3]/60">
+                        Assign matches from tournament control
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Table Footer */}
+                  <div className="border-t border-white/5 pt-2 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
+                    {matchToShow?.round === 5 ? 'FINAL - Best of 5' : 'Race to 2 (Best of 3)'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </main>
+  )
 }

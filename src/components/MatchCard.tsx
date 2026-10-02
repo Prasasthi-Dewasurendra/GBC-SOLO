@@ -1,12 +1,11 @@
-import { motion } from 'framer-motion'
-import { Trophy } from 'lucide-react'
+import { getMatchNumber } from '../lib/tournament'
 import { PlayerAvatar } from './brand/PlayerAvatar'
-import { Badge } from './ui/Badge'
 
 export type MatchCardData = {
   id?: string
   round: number
   slot: number
+  match_number?: number
   player1_id: string | null
   player2_id: string | null
   player1?: { name: string; photo_url?: string | null }
@@ -19,31 +18,387 @@ export type MatchCardData = {
   winner_id: string | null
 }
 
-type MatchCardProps = { match: MatchCardData; variant?: 'compact' | 'standard' | 'display'; onClick?: () => void }
-
-const roundNames = ['', 'R32', 'R16', 'Quarter Final', 'Semi Final', 'FINAL']
-
-export function MatchCard({ match, variant = 'standard', onClick }: MatchCardProps) {
-  const display = variant === 'display'
-  const compact = variant === 'compact'
-  const p1 = match.player1 ?? { name: match.player1_id ? 'Player 1' : 'TBD' }
-  const p2 = match.player2 ?? { name: match.player2_id ? 'Player 2' : 'TBD' }
-  const p1Winner = Boolean(match.winner_id && match.winner_id === match.player1_id)
-  const p2Winner = Boolean(match.winner_id && match.winner_id === match.player2_id)
-  const statusTone = match.status === 'live' ? 'live' : match.status === 'done' ? 'done' : 'pending'
-  const cardClass = match.round === 5 ? 'border-gold/50' : match.status === 'live' ? 'border-live/60 shadow-live' : 'border-border'
-
-  return <motion.button type="button" whileHover={{ y: -1 }} whileTap={{ scale: 0.995 }} onClick={onClick} className={`glass-card w-full rounded-lg border p-3 text-left transition ${cardClass} ${onClick ? 'cursor-pointer' : 'cursor-default'} ${display ? 'p-5' : ''}`}>
-    <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-goldLight">{roundNames[match.round]}</span>{match.table_number && <span className="rounded-full border border-live/30 bg-live/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-glow">Table {match.table_number}</span>}{match.round === 5 && <Trophy className="text-gold" size={15} />}</div><Badge tone={statusTone}>{match.status === 'live' ? 'Playing' : match.status}</Badge></div>
-    <div className={`flex items-center gap-3 ${compact ? 'flex-col items-stretch' : ''}`}>
-      <PlayerLine name={p1.name} photoUrl={p1.photo_url} score={match.p1_racks ?? 0} winner={p1Winner} tbd={p1.name === 'TBD'} display={display} />
-      <span className="shrink-0 font-display text-lg text-muted/50">vs</span>
-      <PlayerLine name={p2.name} photoUrl={p2.photo_url} score={match.p2_racks ?? 0} winner={p2Winner} tbd={p2.name === 'TBD'} display={display} />
-    </div>
-    <div className="mt-3 text-center text-[10px] uppercase tracking-[0.16em] text-muted">{match.round === 5 ? 'Final · Best of 5 · Race to 3' : 'Best of 3 · Race to 2'}</div>
-  </motion.button>
+type MatchCardProps = {
+  match: MatchCardData
+  variant?: 'compact' | 'standard' | 'display'
+  onClick?: () => void
+  className?: string
 }
 
-function PlayerLine({ name, photoUrl, score, winner, tbd, display }: { name: string; photoUrl?: string | null; score: number; winner: boolean; tbd: boolean; display: boolean }) {
-  return <div className={`flex min-w-0 flex-1 items-center gap-2 ${winner ? 'text-goldLight' : tbd ? 'text-muted' : 'text-warm'}`}><PlayerAvatar photoUrl={photoUrl} name={name} size={display ? 'lg' : 'sm'} ring={winner ? 'gold' : 'none'} state={winner ? 'winner' : tbd ? 'tbd' : 'normal'} /><span className={`min-w-0 flex-1 truncate font-semibold ${display ? 'text-2xl' : 'text-sm'}`} title={name}>{name}</span><motion.strong key={score} initial={{ scale: 1.35, color: '#F2D675' }} animate={{ scale: 1 }} className={`font-display tabular-nums ${display ? 'text-4xl' : 'text-2xl'}`}>{score}</motion.strong></div>
+const roundLabels = ['', 'R32', 'R16', 'QF', 'SF', 'FINAL']
+
+export function MatchCard({ match, variant = 'standard', onClick, className = '' }: MatchCardProps) {
+  const matchNum = match.match_number ?? getMatchNumber(match.round, match.slot)
+  const p1 = match.player1 ?? { name: match.player1_id ? 'Player 1' : 'TBD' }
+  const p2 = match.player2 ?? { name: match.player2_id ? 'Player 2' : 'TBD' }
+
+  const isLive = match.status === 'live'
+  const isDone = match.status === 'done'
+  const isFinal = match.round === 5
+
+  const p1Winner = isDone && Boolean(match.winner_id && match.winner_id === match.player1_id)
+  const p2Winner = isDone && Boolean(match.winner_id && match.winner_id === match.player2_id)
+  const p1Loser = isDone && !p1Winner && Boolean(match.winner_id)
+  const p2Loser = isDone && !p2Winner && Boolean(match.winner_id)
+
+  const cardBorder = isLive
+    ? 'border-[#1E8F63]'
+    : isFinal
+      ? 'border-[#C9A24B]'
+      : 'border-white/10'
+
+  const tableText = match.table_number ? `T${match.table_number}` : 'Table TBA'
+
+  if (variant === 'compact') {
+    return (
+      <div
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            onClick()
+          }
+        }}
+        className={`w-full rounded-lg border bg-[#121212] p-2.5 text-left transition ${cardBorder} ${
+          onClick ? 'cursor-pointer hover:border-white/30' : ''
+        } ${className}`}
+      >
+        <div className="mb-2 flex items-center justify-between gap-1.5 text-[11px]">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-semibold text-[#F5F5F5]">M{matchNum}</span>
+            <span className="text-[#A3A3A3]">·</span>
+            <span className="text-[#A3A3A3] truncate">{roundLabels[match.round]}</span>
+            <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-[#A3A3A3]">
+              {tableText}
+            </span>
+          </div>
+          <div className="shrink-0 flex items-center gap-1">
+            {isLive ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#1E8F63]">
+                <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#1E8F63]" />
+                LIVE
+              </span>
+            ) : isDone ? (
+              <span className="text-[10px] font-medium text-[#A3A3A3]">DONE</span>
+            ) : (
+              <span className="text-[10px] text-[#A3A3A3]/60">PENDING</span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <CompactPlayerRow
+            name={p1.name}
+            photoUrl={p1.photo_url}
+            score={match.p1_racks ?? 0}
+            isWinner={p1Winner}
+            isLoser={p1Loser}
+            isDone={isDone}
+          />
+          <CompactPlayerRow
+            name={p2.name}
+            photoUrl={p2.photo_url}
+            score={match.p2_racks ?? 0}
+            isWinner={p2Winner}
+            isLoser={p2Loser}
+            isDone={isDone}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'display') {
+    return (
+      <div
+        className={`w-full rounded-xl border bg-[#121212] p-6 text-left ${cardBorder} ${className}`}
+      >
+        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-3">
+            <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold text-[#F5F5F5]">
+              M{matchNum}
+            </span>
+            <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
+              {roundLabels[match.round]}
+            </span>
+            <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-[#F5F5F5]">
+              {match.table_number ? `Table ${match.table_number}` : 'Table TBA'}
+            </span>
+          </div>
+          <div>
+            {isLive ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1E8F63]">
+                <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
+                LIVE
+              </span>
+            ) : isDone ? (
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#A3A3A3]">
+                FINISHED
+              </span>
+            ) : (
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[#A3A3A3]/60">
+                PENDING
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <DisplayPlayerCol
+            name={p1.name}
+            photoUrl={p1.photo_url}
+            score={match.p1_racks ?? 0}
+            isWinner={p1Winner}
+            isLoser={p1Loser}
+            isDone={isDone}
+          />
+          <span className="shrink-0 font-serif text-xl italic text-[#A3A3A3]/50">vs</span>
+          <DisplayPlayerCol
+            name={p2.name}
+            photoUrl={p2.photo_url}
+            score={match.p2_racks ?? 0}
+            isWinner={p2Winner}
+            isLoser={p2Loser}
+            isDone={isDone}
+          />
+        </div>
+
+        <div className="mt-4 border-t border-white/5 pt-3 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
+          {isFinal ? 'FINAL · Best of 5 · Race to 3' : 'Best of 3 · Race to 2'}
+        </div>
+      </div>
+    )
+  }
+
+  // Standard variant (for Admin & general views)
+  return (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className={`w-full rounded-xl border bg-[#121212] p-4 text-left transition ${cardBorder} ${
+        onClick ? 'cursor-pointer hover:border-white/30' : ''
+      } ${className}`}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+        <div className="flex items-center gap-2">
+          <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-[#F5F5F5]">
+            M{matchNum}
+          </span>
+          <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
+            {roundLabels[match.round]}
+          </span>
+          <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-[#F5F5F5]">
+            {match.table_number ? `Table ${match.table_number}` : 'Table TBA'}
+          </span>
+        </div>
+        <div>
+          {isLive ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#1E8F63]">
+              <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
+              LIVE
+            </span>
+          ) : isDone ? (
+            <span className="text-xs font-medium text-[#A3A3A3]">DONE</span>
+          ) : (
+            <span className="text-xs text-[#A3A3A3]/60">PENDING</span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <StandardPlayerRow
+          name={p1.name}
+          photoUrl={p1.photo_url}
+          score={match.p1_racks ?? 0}
+          isWinner={p1Winner}
+          isLoser={p1Loser}
+          isDone={isDone}
+        />
+        <StandardPlayerRow
+          name={p2.name}
+          photoUrl={p2.photo_url}
+          score={match.p2_racks ?? 0}
+          isWinner={p2Winner}
+          isLoser={p2Loser}
+          isDone={isDone}
+        />
+      </div>
+
+      <div className="mt-3 text-center text-[10px] uppercase tracking-widest text-[#A3A3A3]">
+        {isFinal ? 'FINAL · Best of 5 · Race to 3' : 'Best of 3 · Race to 2'}
+      </div>
+    </div>
+  )
+}
+
+function CompactPlayerRow({
+  name,
+  photoUrl,
+  score,
+  isWinner,
+  isLoser,
+  isDone,
+}: {
+  name: string
+  photoUrl?: string | null
+  score: number
+  isWinner: boolean
+  isLoser: boolean
+  isDone: boolean
+}) {
+  const isTbd = name === 'TBD'
+  return (
+    <div
+      className={`flex items-center justify-between gap-2 rounded px-1.5 py-1 ${
+        isWinner ? 'bg-white/5' : ''
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <PlayerAvatar
+          name={name}
+          photoUrl={photoUrl}
+          size="sm"
+          state={isWinner ? 'winner' : isLoser ? 'eliminated' : isTbd ? 'tbd' : 'normal'}
+        />
+        <span
+          className={`truncate text-xs font-medium ${
+            isWinner
+              ? 'font-semibold text-[#F5F5F5]'
+              : isLoser
+                ? 'text-[#A3A3A3]'
+                : isTbd
+                  ? 'text-[#A3A3A3]'
+                  : 'text-[#F5F5F5]'
+          }`}
+          title={name}
+        >
+          {name}
+        </span>
+      </div>
+      <span
+        className={`font-serif text-sm font-bold tabular-nums shrink-0 ${
+          isWinner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+        }`}
+      >
+        {score}
+      </span>
+    </div>
+  )
+}
+
+function StandardPlayerRow({
+  name,
+  photoUrl,
+  score,
+  isWinner,
+  isLoser,
+  isDone,
+}: {
+  name: string
+  photoUrl?: string | null
+  score: number
+  isWinner: boolean
+  isLoser: boolean
+  isDone: boolean
+}) {
+  const isTbd = name === 'TBD'
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 rounded-lg p-2 ${
+        isWinner ? 'bg-white/5' : ''
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <PlayerAvatar
+          name={name}
+          photoUrl={photoUrl}
+          size="sm"
+          state={isWinner ? 'winner' : isLoser ? 'eliminated' : isTbd ? 'tbd' : 'normal'}
+        />
+        <span
+          className={`truncate text-sm ${
+            isWinner
+              ? 'font-semibold text-[#F5F5F5]'
+              : isLoser
+                ? 'text-[#A3A3A3]'
+                : isTbd
+                  ? 'text-[#A3A3A3]'
+                  : 'text-[#F5F5F5]'
+          }`}
+          title={name}
+        >
+          {name}
+        </span>
+      </div>
+      <span
+        className={`font-serif text-lg font-bold tabular-nums shrink-0 ${
+          isWinner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+        }`}
+      >
+        {score}
+      </span>
+    </div>
+  )
+}
+
+function DisplayPlayerCol({
+  name,
+  photoUrl,
+  score,
+  isWinner,
+  isLoser,
+  isDone,
+}: {
+  name: string
+  photoUrl?: string | null
+  score: number
+  isWinner: boolean
+  isLoser: boolean
+  isDone: boolean
+}) {
+  const isTbd = name === 'TBD'
+  return (
+    <div
+      className={`flex min-w-0 flex-1 flex-col items-center text-center p-3 rounded-xl ${
+        isWinner ? 'bg-white/5' : ''
+      }`}
+    >
+      <PlayerAvatar
+        name={name}
+        photoUrl={photoUrl}
+        size="lg"
+        state={isWinner ? 'winner' : isLoser ? 'eliminated' : isTbd ? 'tbd' : 'normal'}
+      />
+      <h3
+        className={`mt-3 truncate max-w-full text-base font-semibold ${
+          isWinner
+            ? 'text-[#F5F5F5]'
+            : isLoser
+              ? 'text-[#A3A3A3]'
+              : isTbd
+                ? 'text-[#A3A3A3]'
+                : 'text-[#F5F5F5]'
+        }`}
+        title={name}
+      >
+        {name}
+      </h3>
+      <div
+        className={`mt-2 font-serif text-4xl font-bold tabular-nums ${
+          isWinner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+        }`}
+      >
+        {score}
+      </div>
+    </div>
+  )
 }
