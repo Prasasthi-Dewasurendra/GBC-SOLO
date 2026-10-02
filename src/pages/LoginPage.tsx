@@ -1,4 +1,8 @@
 import { FormEvent, useState } from 'react'
+import { LogoTitle } from '../components/brand/LogoTitle'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -28,26 +32,26 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-ink px-6 py-12 text-chalk">
-      <section className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.06] p-8 shadow-2xl shadow-black/20">
-        <p className="mb-3 text-sm uppercase tracking-[0.28em] text-copper">GBC Solo</p>
-        <h1 className="font-display text-4xl">Tournament control</h1>
-        <p className="mt-3 text-sm leading-6 text-white/65">Sign in with the club administrator account to manage the draw and scoring.</p>
+    <main className="grid min-h-screen place-items-center bg-felt-gradient px-6 py-12 text-warm">
+      <section className="w-full max-w-md"><div className="mb-6 flex justify-center"><LogoTitle /></div><Card className="p-8">
+        <p className="text-xs uppercase tracking-[0.28em] text-gold">Operator access</p>
+        <h1 className="mt-3 font-display text-3xl">Tournament control</h1>
+        <p className="mt-3 text-sm leading-6 text-muted">Sign in to manage registration, the draw, and live scoring.</p>
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-          <label className="block text-sm text-white/75">
+          <label className="block text-sm text-muted">
             Email
-            <input className="mt-2 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-chalk outline-none ring-copper focus:ring-2" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <Input className="mt-2" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </label>
-          <label className="block text-sm text-white/75">
+          <label className="block text-sm text-muted">
             Password
-            <input className="mt-2 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-chalk outline-none ring-copper focus:ring-2" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+            <Input className="mt-2" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           </label>
-          {error && <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</p>}
-          <button className="w-full rounded-lg bg-copper px-4 py-3 font-semibold text-ink transition hover:bg-[#e5a66b] disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={submitting}>
+          {error && <p className="rounded-lg border border-goldDark/50 bg-goldDark/15 px-3 py-2 text-sm text-gold">{error}</p>}
+          <Button className="w-full" type="submit" disabled={submitting}>
             {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
+          </Button>
         </form>
-      </section>
+      </Card></section>
     </main>
   )
 }
