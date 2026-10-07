@@ -57,7 +57,7 @@ export function DrawPage() {
   }
 
   async function confirmDraw() {
-    if (players.length !== 32 || matches.length !== 31) {
+    if (players.length !== 32 || matches.length !== 32) {
       toast.error('Create a complete 32-player preview before confirming.')
       return
     }
@@ -101,7 +101,7 @@ export function DrawPage() {
                   <Button variant="secondary" onClick={redraw} disabled={busy || players.length !== 32}>
                     Generate Preview
                   </Button>
-                  <Button onClick={() => void confirmDraw()} disabled={busy || matches.length !== 31}>
+                  <Button onClick={() => void confirmDraw()} disabled={busy || matches.length !== 32}>
                     Confirm Draw
                   </Button>
                 </>
