@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bracket } from '../components/Bracket'
 import { PlayerAvatar } from '../components/brand/PlayerAvatar'
 import { RackDisplay } from '../components/RackDisplay'
+import { FinalScene } from '../components/FinalScene'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
@@ -495,6 +496,21 @@ export function DisplayPage() {
       {/* Main Body */}
       <div className="flex-1 min-h-0 flex flex-col">
         {liveSpecialMatch ? (
+          liveSpecialMatch.round === 5 ? (
+            <div className="absolute inset-0 z-50">
+              <FinalScene
+                matchId={liveSpecialMatch.id}
+                p1Name={nameFor(liveSpecialMatch.player1_id)}
+                p2Name={nameFor(liveSpecialMatch.player2_id)}
+                p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
+                p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
+                p1Racks={liveSpecialMatch.p1_racks}
+                p2Racks={liveSpecialMatch.p2_racks}
+                bestOf={liveSpecialMatch.best_of}
+                date={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+              />
+            </div>
+          ) : (
           <RackDisplay 
             matchId={liveSpecialMatch.id}
             player1Id={liveSpecialMatch.player1_id!}
@@ -506,8 +522,9 @@ export function DisplayPage() {
             p1Racks={liveSpecialMatch.p1_racks}
             p2Racks={liveSpecialMatch.p2_racks}
             bestOf={liveSpecialMatch.best_of}
-            title={liveSpecialMatch.round === 5 ? 'Championship Final' : 'Third Place Playoff'}
+            title='Third Place Playoff'
           />
+          )
         ) : activeRotatedScene === 'bracket' ? (
           // Scene B: Knockout Bracket (two-halves meeting in centre)
           <div className="flex-1 min-h-0 py-1">
