@@ -82,7 +82,7 @@ export function RackControl({ matchId, player1Id, player2Id, p1Name, p2Name }: {
     <div className="mt-6 border border-[#1E8F63]/30 p-4 rounded-xl bg-[#0A0A0A]">
       <div className="flex justify-between items-center mb-4">
         <h4 className="text-[#F5F5F5] font-bold">Ball Tracking</h4>
-        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => void undoLast()} disabled={busy || rack.events.length === 0}>
+        <Button variant="outline" className="h-7 px-2" onClick={() => void undoLast()} disabled={busy || rack.events.length === 0}>
           <RotateCcw size={14} className="mr-1" /> Undo Pot
         </Button>
       </div>
