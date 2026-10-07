@@ -15,6 +15,7 @@ export type BracketMatch = {
   status: 'pending' | 'live' | 'done'
   winner_id: string | null
   table_number: number | null
+  kind?: 'winner' | 'third_place' | 'final'
 }
 
 export type RandomSource = () => number
@@ -51,6 +52,8 @@ export function getMatchNumber(round: number, slot: number): number {
       return 29 + slot
     case 5:
       return 31
+    case 6:
+      return 32
     default:
       return 0
   }
@@ -61,9 +64,9 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
 
   const shuffled = shuffle(players, random)
   const matches: BracketMatch[] = []
-  const matchCounts = [16, 8, 4, 2, 1]
+  const matchCounts = [16, 8, 4, 2, 1, 1]
 
-  for (let round = 1; round <= 5; round += 1) {
+  for (let round = 1; round <= 6; round += 1) {
     for (let slot = 0; slot < matchCounts[round - 1]; slot += 1) {
       matches.push({
         round,
@@ -75,6 +78,7 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
         status: 'pending',
         winner_id: null,
         table_number: null,
+        kind: round === 5 ? 'final' : round === 6 ? 'third_place' : 'winner',
       })
     }
   }
@@ -93,8 +97,22 @@ export function advance(matches: readonly BracketMatch[], round: number, slot: n
   const nextMatch = matches.find((match) => match.round === nextRound && match.slot === nextSlot)
   if (!nextMatch) throw new Error('Next-round match not found')
 
-  return matches.map((match) => {
+  const nextMatches = matches.map((match) => {
     if (match.round !== nextRound || match.slot !== nextSlot) return match
     return slot % 2 === 0 ? { ...match, player1_id: winnerId } : { ...match, player2_id: winnerId }
   })
+
+  // If this was a Semifinal (round 4), also send the loser to the Third Place match (round 6)
+  if (round === 4) {
+    const loserId = source.player1_id === winnerId ? source.player2_id : source.player1_id
+    const thirdPlaceMatch = nextMatches.find((match) => match.round === 6 && match.slot === 0)
+    if (thirdPlaceMatch && loserId) {
+      return nextMatches.map((match) => {
+        if (match.round !== 6 || match.slot !== 0) return match
+        return slot % 2 === 0 ? { ...match, player1_id: loserId } : { ...match, player2_id: loserId }
+      })
+    }
+  }
+
+  return nextMatches
 }
