@@ -3,6 +3,7 @@ import { Clock3, Maximize, Trophy } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bracket } from '../components/Bracket'
 import { PlayerAvatar } from '../components/brand/PlayerAvatar'
+import { RackDisplay } from '../components/RackDisplay'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
@@ -450,8 +451,10 @@ export function DisplayPage() {
   }
 
   // -------------------------------------------------------------
-  // POST-ROUND 1 ROTATION: SCENE B (BRACKET) OR SCENE C (TABLES)
+  // POST-ROUND 1 ROTATION OR FINAL / THIRD PLACE SCENE
   // -------------------------------------------------------------
+  const liveSpecialMatch = matches.find((m) => m.status === 'live' && (m.round === 5 || m.round === 6))
+
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-4 text-[#F5F5F5] flex flex-col select-none transition-opacity duration-300">
       {/* Header Bar */}
@@ -461,9 +464,9 @@ export function DisplayPage() {
             Galle Billiards Club SOLO Tournament
           </h1>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-[#A3A3A3]">
-            {activeRotatedScene === 'bracket' ? 'Championship Bracket' : 'Live Club Tables'}
+            {liveSpecialMatch ? (liveSpecialMatch.round === 5 ? 'Championship Final' : 'Third Place Playoff') : activeRotatedScene === 'bracket' ? 'Championship Bracket' : 'Live Club Tables'}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
             <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
             LIVE
           </span>
@@ -471,9 +474,11 @@ export function DisplayPage() {
 
         {/* Scene Indicator / Rotation info */}
         <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
-          <span className="rounded border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wider text-[#A3A3A3]">
-            Auto-rotating: {activeRotatedScene === 'bracket' ? 'Bracket' : 'Tables'} (20s)
-          </span>
+          {!liveSpecialMatch && (
+            <span className="rounded border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wider text-[#A3A3A3]">
+              Auto-rotating: {activeRotatedScene === 'bracket' ? 'Bracket' : 'Tables'} (20s)
+            </span>
+          )}
           <Clock3 size={15} />
           <span className="font-mono tabular-nums text-sm">
             {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -487,9 +492,23 @@ export function DisplayPage() {
         </div>
       </header>
 
-      {/* Main Body: Switch between Scene B (Bracket) and Scene C (Tables) */}
+      {/* Main Body */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {activeRotatedScene === 'bracket' ? (
+        {liveSpecialMatch ? (
+          <RackDisplay 
+            matchId={liveSpecialMatch.id}
+            player1Id={liveSpecialMatch.player1_id!}
+            player2Id={liveSpecialMatch.player2_id!}
+            p1Name={nameFor(liveSpecialMatch.player1_id)}
+            p2Name={nameFor(liveSpecialMatch.player2_id)}
+            p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
+            p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
+            p1Racks={liveSpecialMatch.p1_racks}
+            p2Racks={liveSpecialMatch.p2_racks}
+            bestOf={liveSpecialMatch.best_of}
+            title={liveSpecialMatch.round === 5 ? 'Championship Final' : 'Third Place Playoff'}
+          />
+        ) : activeRotatedScene === 'bracket' ? (
           // Scene B: Knockout Bracket (two-halves meeting in centre)
           <div className="flex-1 min-h-0 py-1">
             <Bracket

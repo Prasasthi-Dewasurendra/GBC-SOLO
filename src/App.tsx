@@ -7,6 +7,7 @@ import { DrawPage } from './pages/DrawPage'
 import { LoginPage } from './pages/LoginPage'
 import { ScoringPage } from './pages/ScoringPage'
 import { DesignPreviewPage } from './pages/DesignPreviewPage'
+import { OverlayPage } from './pages/OverlayPage'
 
 export function App() {
   return (
@@ -14,6 +15,7 @@ export function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/display" element={<DisplayPage />} />
+        <Route path="/overlay" element={<OverlayPage />} />
         <Route path="/capture/:playerId" element={<CapturePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={<AdminPage />} />

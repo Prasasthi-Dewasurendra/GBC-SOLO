@@ -5,6 +5,7 @@ import { AdminSidebar } from '../components/AdminSidebar'
 import { PlayerAvatar } from '../components/brand/PlayerAvatar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { RackControl } from '../components/RackControl'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
@@ -663,7 +664,7 @@ export function ScoringPage() {
                         </div>
                       )}
 
-                      {selected.status === 'live' && (
+                      {selected.status === 'live' && selected.round < 5 && (
                         <div className="mt-6 space-y-4">
                           <div className="grid grid-cols-2 gap-3">
                             <Button
@@ -703,6 +704,16 @@ export function ScoringPage() {
                             </Button>
                           </div>
                         </div>
+                      )}
+
+                      {selected.status === 'live' && selected.round >= 5 && (
+                        <RackControl 
+                          matchId={selected.id} 
+                          player1Id={selected.player1_id!} 
+                          player2Id={selected.player2_id!} 
+                          p1Name={nameFor(selected.player1_id)} 
+                          p2Name={nameFor(selected.player2_id)} 
+                        />
                       )}
 
                       {selected.status === 'done' && (
