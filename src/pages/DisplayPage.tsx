@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bracket } from '../components/Bracket'
 import { PlayerAvatar } from '../components/brand/PlayerAvatar'
 import { RackDisplay } from '../components/RackDisplay'
-import { FinalScene } from '../components/FinalScene'
+import { FinalScene } from '../components/final/FinalScene'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 
@@ -139,9 +139,9 @@ export function DisplayPage() {
 
   async function toggleFullscreen() {
     if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen().catch(() => {})
+      await document.documentElement.requestFullscreen().catch(() => { })
     } else {
-      await document.exitFullscreen().catch(() => {})
+      await document.exitFullscreen().catch(() => { })
     }
   }
 
@@ -281,11 +281,10 @@ export function DisplayPage() {
               return (
                 <div
                   key={t}
-                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${
-                    liveOnTable
+                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${liveOnTable
                       ? 'border-[#1E8F63] bg-[#1E8F63]/10 text-[#1E8F63]'
                       : 'border-white/10 bg-white/5 text-[#A3A3A3]'
-                  }`}
+                    }`}
                 >
                   <span className="font-bold">T{t}:</span>
                   {liveOnTable ? (
@@ -330,9 +329,8 @@ export function DisplayPage() {
             return (
               <div
                 key={match.id}
-                className={`rounded-lg border bg-[#121212] p-2.5 flex flex-col justify-between ${
-                  isLive ? 'border-[#1E8F63]' : 'border-white/10'
-                }`}
+                className={`rounded-lg border bg-[#121212] p-2.5 flex flex-col justify-between ${isLive ? 'border-[#1E8F63]' : 'border-white/10'
+                  }`}
               >
                 {/* Card Top: Match Number, Table badge, Status */}
                 <div className="flex items-center justify-between text-xs pb-1.5 border-b border-white/5">
@@ -358,9 +356,8 @@ export function DisplayPage() {
 
                 {/* Player 1 Row */}
                 <div
-                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${
-                    p1Winner ? 'bg-white/5' : ''
-                  }`}
+                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${p1Winner ? 'bg-white/5' : ''
+                    }`}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
@@ -368,9 +365,8 @@ export function DisplayPage() {
                         <img
                           src={p1.photo_url}
                           alt={nameFor(match.player1_id)}
-                          className={`h-full w-full object-cover ${
-                            isDone && !p1Winner ? 'opacity-40 grayscale' : ''
-                          }`}
+                          className={`h-full w-full object-cover ${isDone && !p1Winner ? 'opacity-40 grayscale' : ''
+                            }`}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
@@ -379,22 +375,20 @@ export function DisplayPage() {
                       )}
                     </div>
                     <span
-                      className={`truncate text-xl font-semibold tracking-tight ${
-                        p1Winner
+                      className={`truncate text-xl font-semibold tracking-tight ${p1Winner
                           ? 'text-[#F5F5F5]'
                           : isDone
                             ? 'text-[#A3A3A3]'
                             : 'text-[#F5F5F5]'
-                      }`}
+                        }`}
                       title={nameFor(match.player1_id)}
                     >
                       {nameFor(match.player1_id)}
                     </span>
                   </div>
                   <span
-                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${
-                      p1Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
-                    }`}
+                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${p1Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+                      }`}
                   >
                     {match.p1_racks}
                   </span>
@@ -402,9 +396,8 @@ export function DisplayPage() {
 
                 {/* Player 2 Row */}
                 <div
-                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${
-                    p2Winner ? 'bg-white/5' : ''
-                  }`}
+                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${p2Winner ? 'bg-white/5' : ''
+                    }`}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
@@ -412,9 +405,8 @@ export function DisplayPage() {
                         <img
                           src={p2.photo_url}
                           alt={nameFor(match.player2_id)}
-                          className={`h-full w-full object-cover ${
-                            isDone && !p2Winner ? 'opacity-40 grayscale' : ''
-                          }`}
+                          className={`h-full w-full object-cover ${isDone && !p2Winner ? 'opacity-40 grayscale' : ''
+                            }`}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
@@ -423,22 +415,20 @@ export function DisplayPage() {
                       )}
                     </div>
                     <span
-                      className={`truncate text-xl font-semibold tracking-tight ${
-                        p2Winner
+                      className={`truncate text-xl font-semibold tracking-tight ${p2Winner
                           ? 'text-[#F5F5F5]'
                           : isDone
                             ? 'text-[#A3A3A3]'
                             : 'text-[#F5F5F5]'
-                      }`}
+                        }`}
                       title={nameFor(match.player2_id)}
                     >
                       {nameFor(match.player2_id)}
                     </span>
                   </div>
                   <span
-                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${
-                      p2Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
-                    }`}
+                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${p2Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
+                      }`}
                   >
                     {match.p2_racks}
                   </span>
@@ -511,19 +501,19 @@ export function DisplayPage() {
               />
             </div>
           ) : (
-          <RackDisplay 
-            matchId={liveSpecialMatch.id}
-            player1Id={liveSpecialMatch.player1_id!}
-            player2Id={liveSpecialMatch.player2_id!}
-            p1Name={nameFor(liveSpecialMatch.player1_id)}
-            p2Name={nameFor(liveSpecialMatch.player2_id)}
-            p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
-            p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
-            p1Racks={liveSpecialMatch.p1_racks}
-            p2Racks={liveSpecialMatch.p2_racks}
-            bestOf={liveSpecialMatch.best_of}
-            title='Third Place Playoff'
-          />
+            <RackDisplay
+              matchId={liveSpecialMatch.id}
+              player1Id={liveSpecialMatch.player1_id!}
+              player2Id={liveSpecialMatch.player2_id!}
+              p1Name={nameFor(liveSpecialMatch.player1_id)}
+              p2Name={nameFor(liveSpecialMatch.player2_id)}
+              p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
+              p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
+              p1Racks={liveSpecialMatch.p1_racks}
+              p2Racks={liveSpecialMatch.p2_racks}
+              bestOf={liveSpecialMatch.best_of}
+              title='Third Place Playoff'
+            />
           )
         ) : activeRotatedScene === 'bracket' ? (
           // Scene B: Knockout Bracket (two-halves meeting in centre)
@@ -543,8 +533,8 @@ export function DisplayPage() {
               )
               const nextPending = !liveMatch
                 ? matches.find(
-                    (m) => m.status === 'pending' && m.table_number === tableNum && m.player1_id && m.player2_id
-                  )
+                  (m) => m.status === 'pending' && m.table_number === tableNum && m.player1_id && m.player2_id
+                )
                 : null
 
               const matchToShow = liveMatch ?? nextPending

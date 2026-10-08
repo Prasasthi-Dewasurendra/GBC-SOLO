@@ -51,9 +51,7 @@ export function getMatchNumber(round: number, slot: number): number {
     case 4:
       return 29 + slot
     case 5:
-      return 31
-    case 6:
-      return 32
+      return slot === 0 ? 32 : 31
     default:
       return 0
   }
@@ -64,9 +62,9 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
 
   const shuffled = shuffle(players, random)
   const matches: BracketMatch[] = []
-  const matchCounts = [16, 8, 4, 2, 1, 1]
+  const matchCounts = [16, 8, 4, 2, 2]
 
-  for (let round = 1; round <= 6; round += 1) {
+  for (let round = 1; round <= 5; round += 1) {
     for (let slot = 0; slot < matchCounts[round - 1]; slot += 1) {
       matches.push({
         round,
@@ -74,11 +72,11 @@ export function buildBracket(players: readonly BracketPlayer[], random: RandomSo
         match_number: getMatchNumber(round, slot),
         player1_id: round === 1 ? shuffled[slot * 2].id : null,
         player2_id: round === 1 ? shuffled[slot * 2 + 1].id : null,
-        best_of: round === 5 ? 5 : 3,
+        best_of: (round === 5 && slot === 0) ? 5 : 3,
         status: 'pending',
         winner_id: null,
         table_number: null,
-        kind: round === 5 ? 'final' : round === 6 ? 'third_place' : 'winner',
+        kind: round === 5 ? (slot === 0 ? 'final' : 'third_place') : 'winner',
       })
     }
   }
@@ -97,18 +95,18 @@ export function advance(matches: readonly BracketMatch[], round: number, slot: n
   const nextMatch = matches.find((match) => match.round === nextRound && match.slot === nextSlot)
   if (!nextMatch) throw new Error('Next-round match not found')
 
-  const nextMatches = matches.map((match) => {
+  let nextMatches = matches.map((match) => {
     if (match.round !== nextRound || match.slot !== nextSlot) return match
     return slot % 2 === 0 ? { ...match, player1_id: winnerId } : { ...match, player2_id: winnerId }
   })
 
-  // If this was a Semifinal (round 4), also send the loser to the Third Place match (round 6)
+  // If this was a Semifinal (round 4), also send the loser to the Third Place match (round 5 slot 1)
   if (round === 4) {
     const loserId = source.player1_id === winnerId ? source.player2_id : source.player1_id
-    const thirdPlaceMatch = nextMatches.find((match) => match.round === 6 && match.slot === 0)
+    const thirdPlaceMatch = nextMatches.find((match) => match.round === 5 && match.slot === 1)
     if (thirdPlaceMatch && loserId) {
-      return nextMatches.map((match) => {
-        if (match.round !== 6 || match.slot !== 0) return match
+      nextMatches = nextMatches.map((match) => {
+        if (match.round !== 5 || match.slot !== 1) return match
         return slot % 2 === 0 ? { ...match, player1_id: loserId } : { ...match, player2_id: loserId }
       })
     }

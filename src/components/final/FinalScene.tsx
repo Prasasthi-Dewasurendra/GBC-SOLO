@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PlayerAvatar } from './brand/PlayerAvatar'
+import { PlayerAvatar } from '../brand/PlayerAvatar'
 
 interface FinalSceneProps {
   matchId: string
@@ -62,16 +62,16 @@ function PoolBall({ num, size = 'md' }: { num: number; size?: 'sm' | 'md' | 'lg'
 export function FinalScene({ p1Name, p2Name, p1Photo, p2Photo, p1Racks, p2Racks, date = '10 OCT 2026' }: FinalSceneProps) {
   // We'll mock the racks data to match the mockup
   const mockRacks = [
-    { rack: 1, p1Balls: [1,2,3,4,5,6], p2Balls: [7,8], winner: 1, label: '6 REDS' },
-    { rack: 2, p1Balls: [7,8], p2Balls: [1,2,3,4,5,6], winner: 2, label: '8 BALL' },
-    { rack: 3, p1Balls: [1,2,3,4,5,6], p2Balls: [7,8], winner: 1, label: '6 REDS' },
-    { rack: 4, p1Balls: [7,8], p2Balls: [1,2,3,4,5,6], winner: 2, label: '8 BALL' },
-    { rack: 5, p1Balls: [1,2,3,4,5,6], p2Balls: [7,8], winner: 1, label: '6 REDS' }
+    { rack: 1, p1Balls: [1, 2, 3, 4, 5, 6], p2Balls: [7, 8], winner: 1, label: '6 REDS' },
+    { rack: 2, p1Balls: [7, 8], p2Balls: [1, 2, 3, 4, 5, 6], winner: 2, label: '8 BALL' },
+    { rack: 3, p1Balls: [1, 2, 3, 4, 5, 6], p2Balls: [7, 8], winner: 1, label: '6 REDS' },
+    { rack: 4, p1Balls: [7, 8], p2Balls: [1, 2, 3, 4, 5, 6], winner: 2, label: '8 BALL' },
+    { rack: 5, p1Balls: [1, 2, 3, 4, 5, 6], p2Balls: [7, 8], winner: 1, label: '6 REDS' }
   ]
 
   return (
     <div className="w-full h-full bg-[#0A0A0A] flex flex-col font-sans relative overflow-hidden" style={{ minHeight: '1080px', minWidth: '1920px' }}>
-      
+
       {/* HEADER */}
       <header className="h-[110px] w-full border-b border-white/10 flex items-center justify-between px-12 relative">
         <div className="flex items-center gap-4 text-[#C9A24B]">
@@ -82,7 +82,7 @@ export function FinalScene({ p1Name, p2Name, p1Photo, p2Photo, p1Racks, p2Racks,
             <div className="w-3 h-3 rounded-full border border-[#C9A24B] m-0.5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-[0.2em] uppercase leading-tight">Galle<br/>Billiards Club</h1>
+            <h1 className="text-xl font-bold tracking-[0.2em] uppercase leading-tight">Galle<br />Billiards Club</h1>
           </div>
         </div>
 
@@ -102,22 +102,22 @@ export function FinalScene({ p1Name, p2Name, p1Photo, p2Photo, p1Racks, p2Racks,
 
       {/* BODY */}
       <div className="flex-1 flex px-12 py-10 justify-between">
-        
+
         {/* PLAYER 1 */}
         <div className="w-[300px] flex flex-col items-center">
           <div className="w-full h-[360px] rounded-2xl border border-[#C9A24B]/50 overflow-hidden bg-[#121212] relative">
             {p1Photo ? (
               <img src={p1Photo} className="w-full h-full object-cover" />
             ) : (
-               <div className="w-full h-full flex items-center justify-center text-[#A3A3A3] text-4xl font-bold bg-[#0B2A20] relative">
-                 <div className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-white flex items-center justify-center">
-                   <div className="w-6 h-6 rounded-full bg-black" />
-                 </div>
-               </div>
+              <div className="w-full h-full flex items-center justify-center text-[#A3A3A3] text-4xl font-bold bg-[#0B2A20] relative">
+                <div className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-white flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-black" />
+                </div>
+              </div>
             )}
           </div>
           <h2 className="mt-8 text-[32px] font-bold tracking-[0.15em] text-[#F5F5F5] uppercase text-center">{p1Name}</h2>
-          
+
           <div className="mt-8 relative w-[180px] h-[120px] flex flex-col items-center justify-center">
             {/* Hexagon shape border mock */}
             <div className="absolute inset-0 border border-[#C9A24B] opacity-50" style={{ clipPath: 'polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)' }} />
@@ -142,14 +142,14 @@ export function FinalScene({ p1Name, p2Name, p1Photo, p2Photo, p1Racks, p2Racks,
               </motion.span>
             </div>
           </div>
-          
+
           <div className="text-sm tracking-[0.4em] text-[#A3A3A3] mb-8">R A C K S</div>
 
           {/* RACK HISTORY */}
           <div className="w-full max-w-[1000px] flex flex-col gap-4">
             {mockRacks.map((rack, idx) => (
               <div key={idx} className="h-[90px] w-full rounded-[14px] border border-white/10 bg-[#101010] flex items-center px-6 relative">
-                
+
                 {/* P1 Side */}
                 <div className="flex-1 flex items-center gap-6">
                   {rack.winner === 1 ? (
@@ -204,17 +204,17 @@ export function FinalScene({ p1Name, p2Name, p1Photo, p2Photo, p1Racks, p2Racks,
         <div className="w-[300px] flex flex-col items-center">
           <div className="w-full h-[360px] rounded-2xl border border-[#C9A24B]/50 overflow-hidden bg-[#121212] relative">
             {p2Photo ? (
-              <img src={p2Photo} className="w-full h-full object-cover" style={{transform: 'scaleX(-1)'}} />
+              <img src={p2Photo} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
             ) : (
-               <div className="w-full h-full flex items-center justify-center text-[#A3A3A3] text-4xl font-bold bg-[#0B2A20] relative">
-                 <div className="absolute bottom-4 left-4 w-12 h-12 rounded-full bg-white flex items-center justify-center">
-                   <div className="w-6 h-6 rounded-full bg-black" />
-                 </div>
-               </div>
+              <div className="w-full h-full flex items-center justify-center text-[#A3A3A3] text-4xl font-bold bg-[#0B2A20] relative">
+                <div className="absolute bottom-4 left-4 w-12 h-12 rounded-full bg-white flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-black" />
+                </div>
+              </div>
             )}
           </div>
           <h2 className="mt-8 text-[32px] font-bold tracking-[0.15em] text-[#F5F5F5] uppercase text-center">{p2Name}</h2>
-          
+
           <div className="mt-8 relative w-[180px] h-[120px] flex flex-col items-center justify-center">
             {/* Hexagon shape border mock */}
             <div className="absolute inset-0 border border-[#C9A24B] opacity-50" style={{ clipPath: 'polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)' }} />

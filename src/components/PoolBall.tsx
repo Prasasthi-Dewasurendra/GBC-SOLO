@@ -30,8 +30,8 @@ export default function PoolBall({ number, size = 'md', className, potted = fals
       style={{
         display: 'block',
         // potted = grey "ghost" skin: still visible, clearly out of play
-        filter: potted ? 'grayscale(1) brightness(0.55)' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.55))',
-        opacity: potted ? 0.55 : 1,
+        filter: potted ? 'grayscale(1) brightness(0.85)' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.55))',
+        opacity: potted ? 0.6 : 1,
         transition: 'filter 300ms ease, opacity 300ms ease',
       }}
     >
