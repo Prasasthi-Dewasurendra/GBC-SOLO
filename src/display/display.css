@@ -80,10 +80,10 @@
 .display-match-card__chips { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .display-match-card__number { color: var(--display-text); font-size: 14px; letter-spacing: .16em; }
 .display-match-card__rows { display: flex; flex-direction: column; min-height: 0; }
-.display-match-card__rows .display-player { min-height: 70px; gap: 16px; }
+.display-match-card__rows .display-player { min-height: 70px; display: grid; grid-template-columns: var(--display-photo-sm) minmax(0, 1fr) auto; align-items: center; column-gap: 24px; padding: 0 4px; }
 .display-match-card__rows .display-player + .display-player { border-top: 1px solid var(--display-hairline); }
-.display-match-card__rows .display-player__name { flex: 1 1 0; font-size: 28px; }
-.display-match-card__rows .display-score { flex: none; margin-left: auto; font-size: 32px; }
+.display-match-card__rows .display-player__name { font-size: 28px; line-height: 1.2; }
+.display-match-card__rows .display-score { font-size: 32px; }
 .display-match-card__rows .display-player--winner .display-player__name { color: var(--display-text); }
 
 .display-round-tables { display: flex; justify-content: center; gap: 12px; padding-top: 16px; }
