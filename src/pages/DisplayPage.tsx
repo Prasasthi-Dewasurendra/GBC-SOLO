@@ -198,14 +198,6 @@ export function DisplayPage() {
     return shell(
       <section className="display-scene">
         <DisplayHeader title="Round 1" date={clockText} onFullscreen={() => void toggleFullscreen()} />
-        <div className="display-round-tables">
-          {[1, 2, 3, 4].map((table) => {
-            const liveOnTable = matches.find((match) => match.status === 'live' && match.table_number === table)
-            return <div key={table} className={`display-round-tables__item${liveOnTable ? ' display-round-tables__item--live' : ''}`}>
-              <span>Table {table}</span>{liveOnTable ? <StatusBadge status="live" /> : <span>Available</span>}
-            </div>
-          })}
-        </div>
         <div className="display-round-grid">
           {roundOneMatches.map((match) => (
             <RoundOneCard key={match.id} match={match} p1={playerById.get(match.player1_id ?? '')} p2={playerById.get(match.player2_id ?? '')} />

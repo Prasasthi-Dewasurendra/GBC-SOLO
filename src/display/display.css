@@ -75,7 +75,7 @@
 .display-divider--final { background: var(--display-gold); opacity: .3; }
 .display-final-mark { color: var(--display-gold); }
 
-.display-round-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 24px; padding: 32px 0 0; }
+.display-round-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 24px; padding: 24px 0 0; }
 .display-match-card { min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 16px 20px; background: var(--display-match-card-gradient); border: 1px solid var(--display-hairline); border-radius: 16px; }
 .display-match-card--live { border-color: var(--display-green); }
 .display-match-card__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; margin-bottom: 8px; border-bottom: 1px solid var(--display-hairline); }
@@ -89,10 +89,6 @@
 .display-match-card__rows .display-score { font-size: 32px; }
 .display-match-card__rows .display-player--winner { border-left: 2px solid var(--display-gold); border-radius: 8px; background: var(--display-gold-muted); padding-left: 10px; }
 .display-match-card__rows .display-player--winner .display-player__name { color: var(--display-text); }
-
-.display-round-tables { display: flex; justify-content: center; gap: 12px; padding-top: 16px; }
-.display-round-tables__item { min-height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--display-hairline); border-radius: 999px; color: var(--display-text-muted); font-size: 14px; }
-.display-round-tables__item--live { border-color: var(--display-green); color: var(--display-green); }
 
 .display-tables-grid { flex: 1; min-height: 0; padding-top: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .display-table-card { padding: 24px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; min-height: 0; background: var(--display-surface); border: 1px solid var(--display-hairline); border-radius: 16px; }
