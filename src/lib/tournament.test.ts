@@ -61,4 +61,16 @@ describe('advance', () => {
     const advanced = advance(bracket, 1, 1, source.player2_id!)
     expect(advanced.find((match) => match.round === 2 && match.slot === 0)?.player2_id).toBe(source.player2_id)
   })
+  it('places SF winner in Final and SF loser in Third place', () => {
+    const bracket = buildBracket(players, predictableRandom)
+    const sfMatch = bracket.find((match) => match.round === 4 && match.slot === 0)!
+    const bracketWithPlayers = bracket.map(m => m.round === 4 && m.slot === 0 ? { ...m, player1_id: 'p1', player2_id: 'p2' } : m)
+    
+    const advanced = advance(bracketWithPlayers, 4, 0, 'p1')
+    const final = advanced.find((match) => match.round === 5 && match.slot === 0)!
+    expect(final.player1_id).toBe('p1')
+
+    const thirdPlace = advanced.find((match) => match.round === 5 && match.slot === 1)!
+    expect(thirdPlace.player1_id).toBe('p2')
+  })
 })

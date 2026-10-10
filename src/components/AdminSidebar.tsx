@@ -44,7 +44,24 @@ export function AdminSidebar({ current }: AdminSidebarProps) {
         )
       }
 
-      if (matches) {
+      if (matches && players) {
+        const finalMatch = matches.find(m => m.round === 5 && m.slot === 0);
+        const thirdPlaceMatch = matches.find(m => m.round === 5 && m.slot === 1);
+        const championId = finalMatch?.status === 'done' ? finalMatch.winner_id : null;
+        const runnerUpId = finalMatch?.status === 'done' ? (finalMatch.winner_id === finalMatch.player1_id ? finalMatch.player2_id : finalMatch.player1_id) : null;
+        const thirdPlaceId = thirdPlaceMatch?.status === 'done' ? thirdPlaceMatch.winner_id : null;
+        
+        const getPlayerName = (id: string | null) => players.find(p => p.id === id)?.name || 'TBD';
+
+        const resultsCsv = [
+          ['Position', 'Name'],
+          ['Champion', getPlayerName(championId)],
+          ['Runner-up', getPlayerName(runnerUpId)],
+          ['Third Place', getPlayerName(thirdPlaceId)]
+        ];
+        
+        downloadCsv('gbc-results.csv', resultsCsv[0], resultsCsv.slice(1));
+
         downloadCsv(
           'gbc-matches.csv',
           ['Match #', 'Round', 'Slot', 'P1 ID', 'P2 ID', 'P1 Score', 'P2 Score', 'Table', 'Status', 'Winner ID'],
