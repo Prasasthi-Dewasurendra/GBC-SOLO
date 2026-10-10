@@ -1,13 +1,15 @@
 import confetti from 'canvas-confetti'
-import { Clock3, Maximize, Trophy } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bracket } from '../components/Bracket'
-import { PlayerAvatar } from '../components/brand/PlayerAvatar'
 import { FinalScene } from '../components/final/FinalScene'
-import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
-import { supabase } from '../lib/supabase'
 import { FitScreen } from '../components/FitScreen'
+import { getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
+import { supabase } from '../lib/supabase'
 import { matchKind, roundLabel, raceLabel } from '../lib/matchLabels'
+import { Chip, ClubMark, DisplayHeader, MatchPlayer, PhotoFrame, Score, StatusBadge } from '../display/ui'
+import { displayCssVars, displayTheme } from '../display/theme'
+import '../display/display.css'
 
 type DisplayMatch = BracketMatch & {
   id: string
@@ -26,27 +28,27 @@ export function DisplayPage() {
   const prevLiveMatchesCountRef = useRef(0)
   const sceneLockUntilRef = useRef<number>(0)
 
-  const playerById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
-
+  const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
   const roundOneMatches = useMemo(
-    () => matches.filter((m) => m.round === 1).sort((a, b) => a.slot - b.slot),
+    () => matches.filter((match) => match.round === 1).sort((a, b) => a.slot - b.slot),
     [matches]
   )
   const roundOneComplete = useMemo(
-    () => roundOneMatches.length === 16 && roundOneMatches.every((m) => m.status === 'done'),
+    () => roundOneMatches.length === 16 && roundOneMatches.every((match) => match.status === 'done'),
     [roundOneMatches]
   )
-
-  const finalMatch = useMemo(() => matches.find((m) => m.round === 5), [matches])
+  const finalMatch = useMemo(() => matches.find((match) => match.round === 5), [matches])
   const champion = useMemo(
     () => (finalMatch?.status === 'done' && finalMatch?.winner_id ? playerById.get(finalMatch.winner_id) : null),
     [finalMatch, playerById]
   )
   const runnerUp = useMemo(
-    () => (finalMatch?.status === 'done' && finalMatch?.winner_id ? playerById.get(finalMatch.winner_id === finalMatch.player1_id ? finalMatch.player2_id! : finalMatch.player1_id!) : null),
+    () => (finalMatch?.status === 'done' && finalMatch?.winner_id
+      ? playerById.get(finalMatch.winner_id === finalMatch.player1_id ? finalMatch.player2_id! : finalMatch.player1_id!)
+      : null),
     [finalMatch, playerById]
   )
-  const thirdPlaceMatch = useMemo(() => matches.find((m) => matchKind(m as any) === 'third_place'), [matches])
+  const thirdPlaceMatch = useMemo(() => matches.find((match) => matchKind(match as any) === 'third_place'), [matches])
   const thirdPlace = useMemo(
     () => (thirdPlaceMatch?.status === 'done' && thirdPlaceMatch?.winner_id ? playerById.get(thirdPlaceMatch.winner_id) : null),
     [thirdPlaceMatch, playerById]
@@ -66,17 +68,13 @@ export function DisplayPage() {
     if (playerData) setPlayers(playerData as BracketPlayer[])
     if (tournamentData) setTournamentState(tournamentData.state as TournamentState)
     if (matchData) {
-      const enriched = (matchData as DisplayMatch[]).map((m) => ({
-        ...m,
-        match_number: m.match_number ?? getMatchNumber(m.round, m.slot),
+      const enriched = (matchData as DisplayMatch[]).map((match) => ({
+        ...match,
+        match_number: match.match_number ?? getMatchNumber(match.round, match.slot),
       }))
-
-      // Check if a match went live after Round 1
-      const isR1Done = enriched.filter((m) => m.round === 1).length === 16 && enriched.filter((m) => m.round === 1).every((m) => m.status === 'done')
-      const postR1LiveCount = enriched.filter((m) => m.round > 1 && m.status === 'live').length
-
+      const isR1Done = enriched.filter((match) => match.round === 1).length === 16 && enriched.filter((match) => match.round === 1).every((match) => match.status === 'done')
+      const postR1LiveCount = enriched.filter((match) => match.round > 1 && match.status === 'live').length
       if (isR1Done && postR1LiveCount > prevLiveMatchesCountRef.current) {
-        // Trigger Scene C for at least 30 seconds
         setActiveRotatedScene('tables')
         sceneLockUntilRef.current = Date.now() + 30000
       }
@@ -85,58 +83,37 @@ export function DisplayPage() {
     }
   }
 
-  // Realtime subscription
   useEffect(() => {
     void loadData()
     const channel = supabase
       .channel('display-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
-        void loadData()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-        void loadData()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament' }, () => {
-        void loadData()
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadData() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => { void loadData() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament' }, () => { void loadData() })
       .subscribe()
-    return () => {
-      void supabase.removeChannel(channel)
-    }
+    return () => { void supabase.removeChannel(channel) }
   }, [])
 
-  // Clock timer
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
 
-  // Confetti on champion
   useEffect(() => {
     if (champion) {
-      void confetti({
-        particleCount: 180,
-        spread: 100,
-        origin: { y: 0.55 },
-        colors: ['#C9A24B', '#F5F5F5', '#FFFFFF'],
-      })
+      void confetti({ particleCount: 90, spread: 75, origin: { y: 0.55 }, colors: [displayTheme.colors.gold, displayTheme.colors.text, displayTheme.colors.confettiWhite] })
     }
   }, [champion])
 
-  // Post Round 1 rotation: rotate Scene B (Bracket) and Scene C (Tables) every 20 seconds
   useEffect(() => {
     if (!roundOneComplete || champion) return
-
     const interval = window.setInterval(() => {
-      // If locked into Scene C due to match going live, wait until timer expires
       if (Date.now() < sceneLockUntilRef.current) {
         setActiveRotatedScene('tables')
         return
       }
-
-      setActiveRotatedScene((prev) => (prev === 'bracket' ? 'tables' : 'bracket'))
+      setActiveRotatedScene((previous) => previous === 'bracket' ? 'tables' : 'bracket')
     }, 20000)
-
     return () => window.clearInterval(interval)
   }, [roundOneComplete, champion])
 
@@ -150,565 +127,178 @@ export function DisplayPage() {
 
   async function toggleFullscreen() {
     if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen().catch(() => { })
+      await document.documentElement.requestFullscreen().catch(() => {})
     } else {
-      await document.exitFullscreen().catch(() => { })
+      await document.exitFullscreen().catch(() => {})
     }
   }
 
-  // -------------------------------------------------------------
-  // WAITING / REGISTRATION SCENE (before draw confirmed)
-  // -------------------------------------------------------------
-  if (tournamentState === 'registration' || matches.length === 0) {
-    return (
-      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-8 text-[#F5F5F5] flex flex-col justify-between select-none">
-        <header className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div>
-            <h1 className="font-serif text-3xl font-bold tracking-wide text-[#F5F5F5]">
-              Galle Billiards Club SOLO Tournament
-            </h1>
-            <p className="text-xs uppercase tracking-widest text-[#A3A3A3]">
-              Player Registration & Warmup
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-[#A3A3A3]">
-            <Clock3 size={16} />
-            <span className="font-mono tabular-nums">
-              {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-            <button
-              onClick={() => void toggleFullscreen()}
-              className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
-            >
-              <Maximize size={16} />
-            </button>
-          </div>
-        </header>
-
-        <section className="my-auto flex flex-col items-center text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs uppercase tracking-widest text-[#A3A3A3]">
-            Registration Active · 32 Players Single Elimination
-          </div>
-          <h2 className="font-serif text-6xl font-bold text-[#F5F5F5]">Tournament Draw Imminent</h2>
-          <p className="mt-3 text-lg text-[#A3A3A3]">
-            {players.length} / 32 players registered. Matches will begin once the draw is confirmed.
-          </p>
-
-          <div className="mt-10 grid max-w-6xl grid-cols-8 gap-4">
-            {players.slice(0, 32).map((player, idx) => (
-              <div key={player.id} className="flex flex-col items-center">
-                <PlayerAvatar name={player.name} photoUrl={player.photo_url} size="md" />
-                <span className="mt-2 truncate max-w-[100px] text-xs font-medium text-[#A3A3A3]" title={player.name}>
-                  {player.name}
-                </span>
-              </div>
-            ))}
-            {Array.from({ length: Math.max(0, 32 - players.length) }).map((_, i) => (
-              <div key={`empty-${i}`} className="flex flex-col items-center opacity-30">
-                <div className="h-14 w-14 rounded-full border border-dashed border-white/20 bg-white/5 flex items-center justify-center text-xs">
-                  {players.length + i + 1}
-                </div>
-                <span className="mt-2 text-xs text-[#A3A3A3]">Waiting</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <footer className="text-center text-xs uppercase tracking-widest text-[#A3A3A3]/60">
-          Official Club Broadcast Display · 1920x1080
-        </footer>
+  const dateText = clock.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const clockText = clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const shell = (content: React.ReactNode, sceneKey: string) => (
+    <FitScreen>
+      <main className="display-root" style={displayCssVars}>
+        <AnimatePresence initial={false}>
+          <motion.div
+            className="display-scene-motion"
+            key={sceneKey}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+          >
+            {content}
+          </motion.div>
+        </AnimatePresence>
       </main>
-    )
-  }
+    </FitScreen>
+  )
 
-  // -------------------------------------------------------------
-  // SCENE D: CHAMPION (Final complete)
-  // -------------------------------------------------------------
-  if (champion) {
-    return (
-      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-10 text-[#F5F5F5] flex flex-col items-center justify-center text-center relative select-none">
-        <button
-          onClick={() => void toggleFullscreen()}
-          className="absolute right-6 top-6 rounded p-2 text-[#A3A3A3] hover:text-[#F5F5F5]"
-        >
-          <Maximize size={18} />
-        </button>
-
-        <div className="relative z-10 flex flex-col items-center">
-          <Trophy size={64} className="text-[#C9A24B] mb-4 animate-bounce" />
-          <div className="rounded-full border-4 border-[#C9A24B] p-2 bg-[#121212]">
-            {champion.photo_url ? (
-              <img
-                src={champion.photo_url}
-                alt={champion.name}
-                className="h-64 w-64 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-64 w-64 rounded-full bg-[#121212] flex items-center justify-center font-serif text-7xl text-[#F5F5F5]">
-                {champion.name.slice(0, 2).toUpperCase()}
+  if (tournamentState === 'registration' || matches.length === 0) {
+    return shell(
+      <section className="display-scene display-waiting">
+        <DisplayHeader title="Tournament" date={clockText} onFullscreen={() => void toggleFullscreen()} live={false} />
+        <div className="display-waiting__center">
+          <ClubMark />
+          <h2 className="display-serif display-waiting__title">Galle Billiards Club SOLO Tournament</h2>
+          <p className="display-waiting__sub">Draw coming soon · {players.length} of 32 players registered</p>
+          <div className="display-waiting__roster">
+            {players.slice(0, 32).map((player) => (
+              <div key={player.id} className="display-waiting__person">
+                <PhotoFrame src={player.photo_url} name={player.name} size="sm" />
+                <span title={player.name}>{player.name}</span>
               </div>
-            )}
-          </div>
-
-          <p className="mt-8 text-sm font-bold uppercase tracking-[0.4em] text-[#C9A24B]">
-            Tournament Champion
-          </p>
-          <h1 className="mt-3 font-serif text-7xl font-bold tracking-tight text-[#F5F5F5] md:text-8xl">
-            {champion.name}
-          </h1>
-          <p className="mt-4 text-base text-[#A3A3A3] mb-12">
-            Galle Billiards Club SOLO Tournament Winner
-          </p>
-          
-          <div className="flex gap-16 justify-center">
-            {runnerUp && (
-              <div className="flex flex-col items-center">
-                <div className="h-32 w-32 rounded-full border-2 border-white/20 p-1 bg-[#121212] mb-3">
-                  {runnerUp.photo_url ? (
-                    <img src={runnerUp.photo_url} alt={runnerUp.name} className="h-full w-full rounded-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full rounded-full bg-[#121212] flex items-center justify-center font-serif text-4xl text-[#F5F5F5]">{runnerUp.name.slice(0, 2).toUpperCase()}</div>
-                  )}
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3] mb-1">Runner-up</span>
-                <span className="text-lg font-bold text-[#F5F5F5]">{runnerUp.name}</span>
-              </div>
-            )}
-            {thirdPlace && (
-              <div className="flex flex-col items-center">
-                <div className="h-32 w-32 rounded-full border-2 border-white/20 p-1 bg-[#121212] mb-3">
-                  {thirdPlace.photo_url ? (
-                    <img src={thirdPlace.photo_url} alt={thirdPlace.name} className="h-full w-full rounded-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full rounded-full bg-[#121212] flex items-center justify-center font-serif text-4xl text-[#F5F5F5]">{thirdPlace.name.slice(0, 2).toUpperCase()}</div>
-                  )}
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3] mb-1">Third Place</span>
-                <span className="text-lg font-bold text-[#F5F5F5]">{thirdPlace.name}</span>
-              </div>
-            )}
+            ))}
           </div>
         </div>
-      </main>
+      </section>,
+      'waiting'
     )
   }
 
-  // -------------------------------------------------------------
-  // SCENE A: ROUND 1 GRID (16 matches, 4x4 grid, fixed until R1 finishes)
-  // -------------------------------------------------------------
+  if (champion) {
+    return shell(
+      <section className="display-scene display-champion">
+        <DisplayHeader title="Tournament Champion" date={dateText} onFullscreen={() => void toggleFullscreen()} live={false} />
+        <div className="display-champion__body">
+          <PhotoFrame src={champion.photo_url} name={champion.name} size="xl" state="winner" />
+          <p className="display-champion__label">Champion</p>
+          <h2 className="display-serif display-champion__name" title={champion.name}>{champion.name}</h2>
+          <div className="display-champion__podium">
+            {runnerUp && <Placement player={runnerUp} label="Runner-up" />}
+            {thirdPlace && <Placement player={thirdPlace} label="Third place" />}
+          </div>
+        </div>
+      </section>,
+      'champion'
+    )
+  }
+
   if (!roundOneComplete) {
-    return (
-      <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-4 text-[#F5F5F5] flex flex-col select-none">
-        {/* Header Bar */}
-        <header className="flex shrink-0 items-center justify-between border-b border-white/10 pb-3 mb-3">
-          <div className="flex items-center gap-4">
-            <h1 className="font-serif text-2xl font-bold tracking-wide text-[#F5F5F5]">
-              Galle Billiards Club SOLO Tournament
-            </h1>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-[#A3A3A3]">
-              Round 1 - Best of 3
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
-              <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
-              LIVE
-            </span>
-          </div>
-
-          {/* Table Chips: T1..T4 */}
-          <div className="hidden lg:flex items-center gap-2">
-            {[1, 2, 3, 4].map((t) => {
-              const liveOnTable = matches.find((m) => m.status === 'live' && m.table_number === t)
-              return (
-                <div
-                  key={t}
-                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${liveOnTable
-                      ? 'border-[#1E8F63] bg-[#1E8F63]/10 text-[#1E8F63]'
-                      : 'border-white/10 bg-white/5 text-[#A3A3A3]'
-                    }`}
-                >
-                  <span className="font-bold">T{t}:</span>
-                  {liveOnTable ? (
-                    <span className="inline-flex items-center gap-1">
-                      <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#1E8F63]" />
-                      M{liveOnTable.match_number} LIVE
-                    </span>
-                  ) : (
-                    <span>Free</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Clock & Fullscreen */}
-          <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
-            <Clock3 size={15} />
-            <span className="font-mono tabular-nums text-sm">
-              {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-            <button
-              onClick={() => void toggleFullscreen()}
-              className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
-            >
-              <Maximize size={15} />
-            </button>
-          </div>
-        </header>
-
-        {/* 4x4 Grid of Round 1 Cards */}
-        <div className="grid flex-1 grid-cols-4 grid-rows-4 gap-3 min-h-0">
-          {roundOneMatches.map((match) => {
-            const p1 = playerById.get(match.player1_id ?? '')
-            const p2 = playerById.get(match.player2_id ?? '')
-            const isLive = match.status === 'live'
-            const isDone = match.status === 'done'
-
-            const p1Winner = isDone && match.winner_id === match.player1_id
-            const p2Winner = isDone && match.winner_id === match.player2_id
-
-            return (
-              <div
-                key={match.id}
-                className={`rounded-lg border bg-[#121212] p-2.5 flex flex-col justify-between ${isLive ? 'border-[#1E8F63]' : 'border-white/10'
-                  }`}
-              >
-                {/* Card Top: Match Number, Table badge, Status */}
-                <div className="flex items-center justify-between text-xs pb-1.5 border-b border-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#F5F5F5]">M{match.match_number}</span>
-                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-[#A3A3A3]">
-                      {match.table_number ? `T${match.table_number}` : 'Table TBA'}
-                    </span>
-                  </div>
-                  <div>
-                    {isLive ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1E8F63]">
-                        <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#1E8F63]" />
-                        LIVE
-                      </span>
-                    ) : isDone ? (
-                      <span className="text-[10px] font-semibold text-[#A3A3A3]">DONE</span>
-                    ) : (
-                      <span className="text-[10px] text-[#A3A3A3]/60">PENDING</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Player 1 Row */}
-                <div
-                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${p1Winner ? 'bg-white/5' : ''
-                    }`}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
-                      {p1?.photo_url ? (
-                        <img
-                          src={p1.photo_url}
-                          alt={nameFor(match.player1_id)}
-                          className={`h-full w-full object-cover ${isDone && !p1Winner ? 'opacity-40 grayscale' : ''
-                            }`}
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
-                          {nameFor(match.player1_id).slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <span
-                      className={`truncate text-xl font-semibold tracking-tight ${p1Winner
-                          ? 'text-[#F5F5F5]'
-                          : isDone
-                            ? 'text-[#A3A3A3]'
-                            : 'text-[#F5F5F5]'
-                        }`}
-                      title={nameFor(match.player1_id)}
-                    >
-                      {nameFor(match.player1_id)}
-                    </span>
-                  </div>
-                  <span
-                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${p1Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
-                      }`}
-                  >
-                    {match.p1_racks}
-                  </span>
-                </div>
-
-                {/* Player 2 Row */}
-                <div
-                  className={`flex items-center justify-between gap-2.5 rounded px-2 py-1 ${p2Winner ? 'bg-white/5' : ''
-                    }`}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#0A0A0A]">
-                      {p2?.photo_url ? (
-                        <img
-                          src={p2.photo_url}
-                          alt={nameFor(match.player2_id)}
-                          className={`h-full w-full object-cover ${isDone && !p2Winner ? 'opacity-40 grayscale' : ''
-                            }`}
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center font-bold text-sm text-[#A3A3A3]">
-                          {nameFor(match.player2_id).slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <span
-                      className={`truncate text-xl font-semibold tracking-tight ${p2Winner
-                          ? 'text-[#F5F5F5]'
-                          : isDone
-                            ? 'text-[#A3A3A3]'
-                            : 'text-[#F5F5F5]'
-                        }`}
-                      title={nameFor(match.player2_id)}
-                    >
-                      {nameFor(match.player2_id)}
-                    </span>
-                  </div>
-                  <span
-                    className={`font-serif text-3xl font-bold tabular-nums shrink-0 ${p2Winner ? 'text-[#C9A24B]' : isDone ? 'text-[#A3A3A3]' : 'text-[#F5F5F5]'
-                      }`}
-                  >
-                    {match.p2_racks}
-                  </span>
-                </div>
-              </div>
-            )
+    return shell(
+      <section className="display-scene">
+        <DisplayHeader title="Round 1" date={clockText} onFullscreen={() => void toggleFullscreen()} />
+        <div className="display-round-tables">
+          {[1, 2, 3, 4].map((table) => {
+            const liveOnTable = matches.find((match) => match.status === 'live' && match.table_number === table)
+            return <div key={table} className={`display-round-tables__item${liveOnTable ? ' display-round-tables__item--live' : ''}`}>
+              <span>Table {table}</span>{liveOnTable ? <StatusBadge status="live" /> : <span>Available</span>}
+            </div>
           })}
         </div>
-      </main>
+        <div className="display-round-grid">
+          {roundOneMatches.map((match) => (
+            <RoundOneCard key={match.id} match={match} p1={playerById.get(match.player1_id ?? '')} p2={playerById.get(match.player2_id ?? '')} />
+          ))}
+        </div>
+      </section>,
+      'round-one'
     )
   }
 
-  // -------------------------------------------------------------
-  // POST-ROUND 1 ROTATION OR FINAL / THIRD PLACE SCENE
-  // -------------------------------------------------------------
-  const liveSpecialMatch = matches.find((m) => m.status === 'live' && matchKind(m as any) === 'final')
-  
-  const finalPending = finalMatch?.status === 'pending' && finalMatch?.player1_id && finalMatch?.player2_id
+  const liveSpecialMatch = matches.find((match) => match.status === 'live' && matchKind(match as any) === 'final')
+  const finalPending = finalMatch?.status === 'pending' && finalMatch.player1_id && finalMatch.player2_id
   const showFinalBanner = finalPending && thirdPlaceMatch?.status === 'done'
 
-  return (
-    <main className="h-screen w-screen overflow-hidden bg-[#0A0A0A] p-4 text-[#F5F5F5] flex flex-col select-none transition-opacity duration-300">
-      {/* Header Bar */}
-      <header className="flex shrink-0 items-center justify-between border-b border-white/10 pb-3 mb-3">
-        <div className="flex items-center gap-4">
-          <h1 className="font-serif text-2xl font-bold tracking-wide text-[#F5F5F5]">
-            Galle Billiards Club SOLO Tournament
-          </h1>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-[#A3A3A3]">
-            {liveSpecialMatch ? 'Championship Final' : activeRotatedScene === 'bracket' ? 'Championship Bracket' : 'Live Club Tables'}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold text-[#1E8F63]">
-            <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
-            LIVE
-          </span>
-        </div>
-
-        {/* Scene Indicator / Rotation info */}
-        <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
-          {!liveSpecialMatch && (
-            <span className="rounded border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wider text-[#A3A3A3]">
-              Auto-rotating: {activeRotatedScene === 'bracket' ? 'Bracket' : 'Tables'} (20s)
-            </span>
-          )}
-          <Clock3 size={15} />
-          <span className="font-mono tabular-nums text-sm">
-            {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-          <button
-            onClick={() => void toggleFullscreen()}
-            className="rounded p-1 text-[#A3A3A3] hover:text-[#F5F5F5]"
-          >
-            <Maximize size={15} />
-          </button>
-        </div>
-      </header>
-
-      {/* Main Body */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        {showFinalBanner && !liveSpecialMatch && activeRotatedScene === 'bracket' && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-[#C9A24B] text-[#0A0A0A] px-6 py-2 rounded-full font-bold uppercase tracking-widest text-sm shadow-xl animate-pulse">
-            Final Up Next
-          </div>
-        )}
+  return shell(
+    <section className="display-scene">
+      <DisplayHeader
+        title={liveSpecialMatch ? 'Championship Final' : activeRotatedScene === 'bracket' ? 'Championship Bracket' : 'Club Tables'}
+        date={liveSpecialMatch ? dateText : clockText}
+        onFullscreen={() => void toggleFullscreen()}
+      />
+      <div className="display-postround-content">
+        {showFinalBanner && !liveSpecialMatch && activeRotatedScene === 'bracket' && <div className="display-final-up-next"><Chip variant="final">Final up next</Chip></div>}
         {liveSpecialMatch ? (
-          <div className="absolute inset-0 z-50">
-            <FitScreen>
-              <FinalScene
-                matchId={liveSpecialMatch.id}
-                p1Name={nameFor(liveSpecialMatch.player1_id)}
-                p2Name={nameFor(liveSpecialMatch.player2_id)}
-                p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
-                p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
-                p1Racks={liveSpecialMatch.p1_racks}
-                p2Racks={liveSpecialMatch.p2_racks}
-                bestOf={liveSpecialMatch.best_of}
-                date={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
-                rackWinners={liveSpecialMatch.rack_winners}
-              />
-            </FitScreen>
-          </div>
+          <FinalScene
+            matchId={liveSpecialMatch.id}
+            p1Name={nameFor(liveSpecialMatch.player1_id)}
+            p2Name={nameFor(liveSpecialMatch.player2_id)}
+            p1Photo={photoFor(liveSpecialMatch.player1_id) ?? undefined}
+            p2Photo={photoFor(liveSpecialMatch.player2_id) ?? undefined}
+            p1Racks={liveSpecialMatch.p1_racks}
+            p2Racks={liveSpecialMatch.p2_racks}
+            bestOf={liveSpecialMatch.best_of}
+            date={dateText}
+            rackWinners={liveSpecialMatch.rack_winners}
+          />
         ) : activeRotatedScene === 'bracket' ? (
-          // Scene B: Knockout Bracket (two-halves meeting in centre)
-          <div className="flex-1 min-h-0 py-1">
-            <Bracket
-              matches={matches.filter((m) => m.round > 1)}
-              players={players}
-              layout="two-halves"
-            />
-          </div>
+          <Bracket matches={matches.filter((match) => match.round > 1)} players={players} layout="two-halves" />
         ) : (
-          // Scene C: Tables (4 Cards: Table 1 to Table 4)
-          <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-4">
+          <div className="display-tables-grid">
             {[1, 2, 3, 4].map((tableNum) => {
-              const liveMatch = matches.find(
-                (m) => m.status === 'live' && m.table_number === tableNum
-              )
-              const nextPending = !liveMatch
-                ? matches.find(
-                  (m) => m.status === 'pending' && m.table_number === tableNum && m.player1_id && m.player2_id
-                )
-                : null
-
-              const matchToShow = liveMatch ?? nextPending
-              const isLive = Boolean(liveMatch)
-              const isUpNext = Boolean(!liveMatch && nextPending)
-              const isFinal = matchKind(matchToShow as any) === 'final'
-
-              const p1 = matchToShow?.player1_id ? playerById.get(matchToShow.player1_id) : null
-              const p2 = matchToShow?.player2_id ? playerById.get(matchToShow.player2_id) : null
-
-              const borderClass = isLive
-                ? 'border-[#1E8F63]'
-                : isFinal
-                  ? 'border-[#C9A24B]'
-                  : 'border-white/10'
-
-              return (
-                <div
-                  key={tableNum}
-                  className={`rounded-xl border bg-[#121212] p-5 flex flex-col justify-between ${borderClass}`}
-                >
-                  {/* Table Header */}
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="font-serif text-2xl font-bold text-[#F5F5F5]">
-                        Table {tableNum}
-                      </span>
-                      {matchToShow && (
-                        <>
-                          <span className="rounded bg-white/10 px-2.5 py-0.5 text-xs font-bold text-[#F5F5F5]">
-                            M{matchToShow.match_number}
-                          </span>
-                          <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-                            {roundLabel(matchToShow as any)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    <div>
-                      {isLive ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-bold text-[#1E8F63]">
-                          <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
-                          LIVE MATCH
-                        </span>
-                      ) : isUpNext ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
-                          Up next
-                        </span>
-                      ) : (
-                        <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-                          Table available
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Match Body */}
-                  {matchToShow ? (
-                    <div className="my-auto flex items-center justify-between gap-6 px-6">
-                      {/* Player 1 */}
-                      <div className="flex flex-1 flex-col items-center text-center min-w-0">
-                        <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-white/10 bg-[#0A0A0A]">
-                          {p1?.photo_url ? (
-                            <img
-                              src={p1.photo_url}
-                              alt={nameFor(matchToShow.player1_id)}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center font-bold text-2xl text-[#A3A3A3]">
-                              {nameFor(matchToShow.player1_id).slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <h3
-                          className="mt-3 truncate max-w-full text-2xl font-bold text-[#F5F5F5]"
-                          title={nameFor(matchToShow.player1_id)}
-                        >
-                          {nameFor(matchToShow.player1_id)}
-                        </h3>
-                        <div className="mt-2 font-serif text-6xl font-bold tabular-nums text-[#F5F5F5]">
-                          {matchToShow.p1_racks}
-                        </div>
-                      </div>
-
-                      {/* VS divider */}
-                      <div className="flex flex-col items-center justify-center">
-                        <span className="font-serif text-2xl italic text-[#A3A3A3]/40">vs</span>
-                        <span className="mt-2 text-xs uppercase tracking-widest text-[#A3A3A3]">
-                          {raceLabel(matchToShow as any)}
-                        </span>
-                      </div>
-
-                      {/* Player 2 */}
-                      <div className="flex flex-1 flex-col items-center text-center min-w-0">
-                        <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-white/10 bg-[#0A0A0A]">
-                          {p2?.photo_url ? (
-                            <img
-                              src={p2.photo_url}
-                              alt={nameFor(matchToShow.player2_id)}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center font-bold text-2xl text-[#A3A3A3]">
-                              {nameFor(matchToShow.player2_id).slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <h3
-                          className="mt-3 truncate max-w-full text-2xl font-bold text-[#F5F5F5]"
-                          title={nameFor(matchToShow.player2_id)}
-                        >
-                          {nameFor(matchToShow.player2_id)}
-                        </h3>
-                        <div className="mt-2 font-serif text-6xl font-bold tabular-nums text-[#F5F5F5]">
-                          {matchToShow.p2_racks}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="my-auto py-12 text-center text-[#A3A3A3]">
-                      <p className="text-xl font-medium">Table available</p>
-                      <p className="mt-1 text-xs text-[#A3A3A3]/60">
-                        Assign matches from tournament control
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Table Footer */}
-                  <div className="border-t border-white/5 pt-2 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
-                    {matchToShow ? `${roundLabel(matchToShow as any)} · ${raceLabel(matchToShow as any)} (Best of ${matchToShow.best_of})` : 'Table Available'}
-                  </div>
-                </div>
-              )
+              const liveMatch = matches.find((match) => match.status === 'live' && match.table_number === tableNum)
+              const nextPending = !liveMatch ? matches.find((match) => match.status === 'pending' && match.table_number === tableNum && match.player1_id && match.player2_id) : null
+              return <TablePanel key={tableNum} table={tableNum} match={liveMatch ?? nextPending} isLive={Boolean(liveMatch)} nameFor={nameFor} photoFor={photoFor} />
             })}
           </div>
         )}
       </div>
-    </main>
+    </section>,
+    liveSpecialMatch ? 'final' : activeRotatedScene
   )
+}
+
+function Placement({ player, label }: { player: BracketPlayer; label: string }) {
+  return <div className="display-champion__place">
+    <PhotoFrame src={player.photo_url} name={player.name} size="sm" />
+    <div><p className="display-champion__place-label">{label}</p><p className="display-champion__place-name" title={player.name}>{player.name}</p></div>
+  </div>
+}
+
+function RoundOneCard({ match, p1, p2 }: { match: DisplayMatch; p1?: BracketPlayer; p2?: BracketPlayer }) {
+  const done = match.status === 'done'
+  const p1Winner = done && match.winner_id === match.player1_id
+  const p2Winner = done && match.winner_id === match.player2_id
+  return <article className={`display-match-card${match.status === 'live' ? ' display-match-card--live' : ''}`}>
+    <div className="display-match-card__top">
+      <div className="display-match-card__chips"><span className="display-match-card__number">M{match.match_number}</span><Chip>{match.table_number ? `Table ${match.table_number}` : 'Table TBA'}</Chip></div>
+      <StatusBadge status={match.status} />
+    </div>
+    <div className="display-match-card__rows">
+      <MatchPlayer name={p1?.name ?? 'TBD'} photo={p1?.photo_url} score={match.p1_racks} state={p1Winner ? 'winner' : done ? 'loser' : p1 ? 'normal' : 'tbd'} />
+      <MatchPlayer name={p2?.name ?? 'TBD'} photo={p2?.photo_url} score={match.p2_racks} state={p2Winner ? 'winner' : done ? 'loser' : p2 ? 'normal' : 'tbd'} />
+    </div>
+  </article>
+}
+
+function TablePanel({ table, match, isLive, nameFor, photoFor }: {
+  table: number
+  match: DisplayMatch | null | undefined
+  isLive: boolean
+  nameFor: (id: string | null) => string
+  photoFor: (id: string | null) => string | null | undefined
+}) {
+  return <article className={`display-table-card${isLive ? ' display-table-card--live' : ''}`}>
+    <header className="display-table-card__header">
+      <div className="display-table-card__heading"><strong>Table {table}</strong>{match && <><Chip>{roundLabel(match as any)}</Chip><Chip>M{match.match_number}</Chip></>}</div>
+      {isLive ? <StatusBadge status="live" /> : match ? <span className="display-status">Up next</span> : <span className="display-status">Table available</span>}
+    </header>
+    {match ? <div className="display-table-card__players">
+      <div className="display-table-card__player"><PhotoFrame src={photoFor(match.player1_id)} name={nameFor(match.player1_id)} size="md" state={match.player1_id ? 'normal' : 'tbd'} /><span className="display-player__name" title={nameFor(match.player1_id)}>{nameFor(match.player1_id)}</span></div>
+      <div className="display-table-card__vs"><Score value={match.p1_racks} /><span> : </span><Score value={match.p2_racks} /></div>
+      <div className="display-table-card__player"><PhotoFrame src={photoFor(match.player2_id)} name={nameFor(match.player2_id)} size="md" state={match.player2_id ? 'normal' : 'tbd'} /><span className="display-player__name" title={nameFor(match.player2_id)}>{nameFor(match.player2_id)}</span></div>
+    </div> : <div className="display-table-card__state">Table available</div>}
+    <footer className="display-table-card__footer">{match ? `${roundLabel(match as any)} · ${raceLabel(match as any)} · Best of ${match.best_of}` : 'No match assigned'}</footer>
+  </article>
 }

@@ -2,6 +2,7 @@ import { getMatchNumber } from '../lib/tournament'
 import { PlayerAvatar } from './brand/PlayerAvatar'
 import { matchKind, roundLabel, raceLabel } from '../lib/matchLabels'
 import { Trophy } from 'lucide-react'
+import { Chip, FinalMark, MatchPlayer, StatusBadge } from '../display/ui'
 
 export type MatchCardData = {
   id?: string
@@ -127,61 +128,22 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
   if (variant === 'display') {
     return (
       <div
-        className={`w-full rounded-xl border bg-[#121212] p-6 text-left ${cardBorder} ${className}`}
+        className={`display-bracket-card${isFinal ? ' display-bracket-card--final' : ''}${isLive ? ' display-bracket-card--live' : ''}${isDone ? ' display-bracket-card--done' : ''} ${className}`}
       >
-        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold text-[#F5F5F5]">
-              {isFinal && <Trophy size={12} className="text-[#C9A24B]" />}
-              M{matchNum}
-            </span>
-            <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-              {roundLabel(match as any)}
-            </span>
-            <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-[#F5F5F5]">
-              {match.table_number ? `Table ${match.table_number}` : 'Table TBA'}
-            </span>
+        <div className="display-bracket-card__top">
+          <div className="display-bracket-card__meta">
+            {isFinal && <FinalMark />}
+            <span>M{matchNum}</span>
+            <Chip variant={isFinal ? 'final' : 'default'}>{roundLabel(match as any)}</Chip>
           </div>
-          <div>
-            {isLive ? (
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#1E8F63]/30 bg-[#1E8F63]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1E8F63]">
-                <span className="live-dot h-2 w-2 rounded-full bg-[#1E8F63]" />
-                LIVE
-              </span>
-            ) : isDone ? (
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#A3A3A3]">
-                FINISHED
-              </span>
-            ) : (
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[#A3A3A3]/60">
-                PENDING
-              </span>
-            )}
-          </div>
+          <StatusBadge status={isLive ? 'live' : isDone ? 'done' : 'pending'} />
         </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <DisplayPlayerCol
-            name={p1.name}
-            photoUrl={p1.photo_url}
-            score={match.p1_racks ?? 0}
-            isWinner={p1Winner}
-            isLoser={p1Loser}
-            isDone={isDone}
-          />
-          <span className="shrink-0 font-serif text-xl italic text-[#A3A3A3]/50">vs</span>
-          <DisplayPlayerCol
-            name={p2.name}
-            photoUrl={p2.photo_url}
-            score={match.p2_racks ?? 0}
-            isWinner={p2Winner}
-            isLoser={p2Loser}
-            isDone={isDone}
-          />
+        <div className="display-bracket-card__players">
+          <MatchPlayer name={p1.name} photo={p1.photo_url} state={p1Winner ? 'winner' : p1Loser ? 'loser' : match.player1_id ? 'normal' : 'tbd'} />
+          <MatchPlayer name={p2.name} photo={p2.photo_url} state={p2Winner ? 'winner' : p2Loser ? 'loser' : match.player2_id ? 'normal' : 'tbd'} />
         </div>
-
-        <div className="mt-4 border-t border-white/5 pt-3 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
-          {isFinal ? 'FINAL · Best of 5 · Race to 3' : `${raceLabel(match as any)} (Best of ${match.best_of})`}
+        <div className="display-bracket-card__footer">
+          {isFinal ? 'Championship Final' : isThirdPlace ? 'Third-place play-off' : `${raceLabel(match as any)} · Best of ${match.best_of}`}
         </div>
       </div>
     )

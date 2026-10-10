@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { displayTheme } from '../display/theme'
 
 export function FitScreen({ children }: { children: React.ReactNode }) {
   const [scale, setScale] = useState(1)
@@ -6,7 +7,10 @@ export function FitScreen({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onResize = () => {
-      const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080)
+      const s = Math.min(
+        window.innerWidth / displayTheme.sizes.canvasWidth,
+        window.innerHeight / displayTheme.sizes.canvasHeight
+      )
       setScale(s)
     }
     window.addEventListener('resize', onResize)
@@ -15,16 +19,17 @@ export function FitScreen({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: displayTheme.colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div
         ref={containerRef}
         style={{
-          width: 1920,
-          height: 1080,
+          width: displayTheme.sizes.canvasWidth,
+          height: displayTheme.sizes.canvasHeight,
           transform: `scale(${scale})`,
           transformOrigin: 'center center',
-          background: '#0A0A0A',
-          position: 'relative'
+          background: displayTheme.colors.bg,
+          position: 'relative',
+          flexShrink: 0,
         }}
       >
         {children}

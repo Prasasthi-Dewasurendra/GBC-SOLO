@@ -1,5 +1,6 @@
 import { MatchCard, type MatchCardData } from './MatchCard'
 import { getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
+import { Chip } from '../display/ui'
 
 type BracketProps = {
   matches: BracketMatch[]
@@ -46,10 +47,10 @@ export function Bracket({
     const r16Right = [4, 5, 6, 7].map((slot) => matches.find((m) => m.round === 2 && m.slot === slot))
 
     return (
-      <div className="grid h-full w-full grid-cols-7 items-stretch gap-2.5">
+      <div className="display-bracket">
         {/* Left R16 */}
-        <div className="flex flex-col justify-between py-1">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--outer">
+          <div className="display-bracket__round-label">
             R16 Left
           </div>
           {r16Left.map((m, idx) =>
@@ -57,18 +58,18 @@ export function Bracket({
               <MatchCard
                 key={m.id ?? `r2-s${m.slot}`}
                 match={getCardData(m)}
-                variant="compact"
+                variant={layout === 'two-halves' ? 'display' : 'compact'}
                 onClick={onMatchClick ? () => onMatchClick(m) : undefined}
               />
             ) : (
-              <div key={`empty-r16-l-${idx}`} className="h-16 rounded border border-white/5" />
+              <div key={`empty-r16-l-${idx}`} className="display-bracket__empty" />
             )
           )}
         </div>
 
         {/* Left QF */}
-        <div className="flex flex-col justify-around py-4">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--inner">
+          <div className="display-bracket__round-label">
             QF Left
           </div>
           {qfLeft.map((m, idx) =>
@@ -76,85 +77,84 @@ export function Bracket({
               <MatchCard
                 key={m.id ?? `r3-s${m.slot}`}
                 match={getCardData(m)}
-                variant="compact"
+                variant={layout === 'two-halves' ? 'display' : 'compact'}
                 onClick={onMatchClick ? () => onMatchClick(m) : undefined}
               />
             ) : (
-              <div key={`empty-qf-l-${idx}`} className="h-16 rounded border border-white/5" />
+              <div key={`empty-qf-l-${idx}`} className="display-bracket__empty" />
             )
           )}
         </div>
 
         {/* Left SF */}
-        <div className="flex flex-col justify-center py-6">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--semi">
+          <div className="display-bracket__round-label">
             Semi-Final 1
           </div>
           {sfLeft[0] ? (
             <MatchCard
               match={getCardData(sfLeft[0])}
-              variant="compact"
+              variant={layout === 'two-halves' ? 'display' : 'compact'}
               onClick={onMatchClick ? () => onMatchClick(sfLeft[0]!) : undefined}
             />
           ) : (
-            <div className="h-16 rounded border border-white/5" />
+            <div className="display-bracket__empty" />
           )}
         </div>
 
         {/* Center Final & Third Place */}
-        <div className="flex flex-col justify-center gap-6 py-4">
+        <div className="display-bracket__column display-bracket__column--final">
           <div>
-            <div className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#C9A24B]">
-              ★ Championship Final ★
+            <div className="display-bracket__final-label">
+              Championship Final
             </div>
             {finalMatch ? (
               <MatchCard
                 match={getCardData(finalMatch)}
-                variant="compact"
-                className="border-[#C9A24B] shadow-lg shadow-black"
+                variant={layout === 'two-halves' ? 'display' : 'compact'}
                 onClick={onMatchClick ? () => onMatchClick(finalMatch) : undefined}
               />
             ) : (
-              <div className="h-24 rounded border border-[#C9A24B]/30" />
+              <div className="display-bracket__empty display-bracket__empty--final" />
             )}
           </div>
           <div>
-            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3]">
-              3rd Place Play-off
+            <div className="display-bracket__round-label">
+              <Chip>3rd Place Play-off</Chip>
             </div>
             {thirdPlaceMatch ? (
-              <div className="scale-90 origin-top">
+              <div className="display-bracket__third-place">
                 <MatchCard
                   match={getCardData(thirdPlaceMatch)}
-                  variant="compact"
+                  variant={layout === 'two-halves' ? 'display' : 'compact'}
                   onClick={onMatchClick ? () => onMatchClick(thirdPlaceMatch) : undefined}
                 />
               </div>
             ) : (
-              <div className="h-16 rounded border border-white/5" />
+              <div className="display-bracket__empty" />
             )}
           </div>
         </div>
 
         {/* Right SF */}
-        <div className="flex flex-col justify-center py-6">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--semi">
+          <div className="display-bracket__round-label">
             Semi-Final 2
           </div>
           {sfRight[0] ? (
             <MatchCard
               match={getCardData(sfRight[0])}
-              variant="compact"
+              variant={layout === 'two-halves' ? 'display' : 'compact'}
               onClick={onMatchClick ? () => onMatchClick(sfRight[0]!) : undefined}
             />
           ) : (
-            <div className="h-16 rounded border border-white/5" />
+            <div className="display-bracket__empty" />
           )}
         </div>
 
         {/* Right QF */}
-        <div className="flex flex-col justify-around py-4">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--inner">
+          <div className="display-bracket__round-label">
             QF Right
           </div>
           {qfRight.map((m, idx) =>
@@ -162,18 +162,18 @@ export function Bracket({
               <MatchCard
                 key={m.id ?? `r3-s${m.slot}`}
                 match={getCardData(m)}
-                variant="compact"
+                variant={layout === 'two-halves' ? 'display' : 'compact'}
                 onClick={onMatchClick ? () => onMatchClick(m) : undefined}
               />
             ) : (
-              <div key={`empty-qf-r-${idx}`} className="h-16 rounded border border-white/5" />
+              <div key={`empty-qf-r-${idx}`} className="display-bracket__empty" />
             )
           )}
         </div>
 
         {/* Right R16 */}
-        <div className="flex flex-col justify-between py-1">
-          <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+        <div className="display-bracket__column display-bracket__column--outer">
+          <div className="display-bracket__round-label">
             R16 Right
           </div>
           {r16Right.map((m, idx) =>
@@ -181,11 +181,11 @@ export function Bracket({
               <MatchCard
                 key={m.id ?? `r2-s${m.slot}`}
                 match={getCardData(m)}
-                variant="compact"
+                variant={layout === 'two-halves' ? 'display' : 'compact'}
                 onClick={onMatchClick ? () => onMatchClick(m) : undefined}
               />
             ) : (
-              <div key={`empty-r16-r-${idx}`} className="h-16 rounded border border-white/5" />
+              <div key={`empty-r16-r-${idx}`} className="display-bracket__empty" />
             )
           )}
         </div>
