@@ -84,6 +84,7 @@
 .display-match-card__rows .display-player + .display-player { border-top: 1px solid var(--display-hairline); }
 .display-match-card__rows .display-player__name { font-size: 28px; line-height: 1.2; }
 .display-match-card__rows .display-score { font-size: 32px; }
+.display-match-card__rows .display-player--winner { border-left: 2px solid var(--display-gold); border-radius: 8px; background: var(--display-gold-muted); padding-left: 10px; }
 .display-match-card__rows .display-player--winner .display-player__name { color: var(--display-text); }
 
 .display-round-tables { display: flex; justify-content: center; gap: 12px; padding-top: 16px; }
