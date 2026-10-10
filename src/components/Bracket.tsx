@@ -40,6 +40,7 @@ export function Bracket({
     const qfLeft = [0, 1].map((slot) => matches.find((m) => m.round === 3 && m.slot === slot))
     const sfLeft = [0].map((slot) => matches.find((m) => m.round === 4 && m.slot === slot))
     const finalMatch = matches.find((m) => m.round === 5 && m.slot === 0)
+    const thirdPlaceMatch = matches.find((m) => m.round === 5 && m.slot === 1)
     const sfRight = [1].map((slot) => matches.find((m) => m.round === 4 && m.slot === slot))
     const qfRight = [2, 3].map((slot) => matches.find((m) => m.round === 3 && m.slot === slot))
     const r16Right = [4, 5, 6, 7].map((slot) => matches.find((m) => m.round === 2 && m.slot === slot))
@@ -100,21 +101,39 @@ export function Bracket({
           )}
         </div>
 
-        {/* Center Final */}
-        <div className="flex flex-col justify-center py-4">
-          <div className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#C9A24B]">
-            ★ Championship Final ★
+        {/* Center Final & Third Place */}
+        <div className="flex flex-col justify-center gap-6 py-4">
+          <div>
+            <div className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#C9A24B]">
+              ★ Championship Final ★
+            </div>
+            {finalMatch ? (
+              <MatchCard
+                match={getCardData(finalMatch)}
+                variant="compact"
+                className="border-[#C9A24B] shadow-lg shadow-black"
+                onClick={onMatchClick ? () => onMatchClick(finalMatch) : undefined}
+              />
+            ) : (
+              <div className="h-24 rounded border border-[#C9A24B]/30" />
+            )}
           </div>
-          {finalMatch ? (
-            <MatchCard
-              match={getCardData(finalMatch)}
-              variant="compact"
-              className="border-[#C9A24B] shadow-lg shadow-black"
-              onClick={onMatchClick ? () => onMatchClick(finalMatch) : undefined}
-            />
-          ) : (
-            <div className="h-24 rounded border border-[#C9A24B]/30" />
-          )}
+          <div>
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3]">
+              3rd Place Play-off
+            </div>
+            {thirdPlaceMatch ? (
+              <div className="scale-90 origin-top">
+                <MatchCard
+                  match={getCardData(thirdPlaceMatch)}
+                  variant="compact"
+                  onClick={onMatchClick ? () => onMatchClick(thirdPlaceMatch) : undefined}
+                />
+              </div>
+            ) : (
+              <div className="h-16 rounded border border-white/5" />
+            )}
+          </div>
         </div>
 
         {/* Right SF */}
@@ -181,7 +200,7 @@ export function Bracket({
     <div className="grid min-w-[1240px] grid-cols-5 gap-4 overflow-x-auto pb-4">
       {roundTitles.map((title, roundIndex) => {
         const round = roundIndex + 1
-        const roundMatches = matches.filter((match) => match.round === round)
+        const roundMatches = matches.filter((match) => match.round === round).sort((a, b) => a.slot - b.slot)
         return (
           <section className="flex flex-col" key={round}>
             <header className="mb-3 border-b border-white/10 pb-2">

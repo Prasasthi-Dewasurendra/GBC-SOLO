@@ -7,6 +7,7 @@ import { FinalScene } from '../components/final/FinalScene'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
 import { FitScreen } from '../components/FitScreen'
+import { matchKind, roundLabel, raceLabel } from '../lib/matchLabels'
 
 type DisplayMatch = BracketMatch & {
   id: string
@@ -45,7 +46,7 @@ export function DisplayPage() {
     () => (finalMatch?.status === 'done' && finalMatch?.winner_id ? playerById.get(finalMatch.winner_id === finalMatch.player1_id ? finalMatch.player2_id! : finalMatch.player1_id!) : null),
     [finalMatch, playerById]
   )
-  const thirdPlaceMatch = useMemo(() => matches.find((m) => m.round === 5 && m.slot === 1), [matches])
+  const thirdPlaceMatch = useMemo(() => matches.find((m) => matchKind(m as any) === 'third_place'), [matches])
   const thirdPlace = useMemo(
     () => (thirdPlaceMatch?.status === 'done' && thirdPlaceMatch?.winner_id ? playerById.get(thirdPlaceMatch.winner_id) : null),
     [thirdPlaceMatch, playerById]
@@ -483,7 +484,7 @@ export function DisplayPage() {
   // -------------------------------------------------------------
   // POST-ROUND 1 ROTATION OR FINAL / THIRD PLACE SCENE
   // -------------------------------------------------------------
-  const liveSpecialMatch = matches.find((m) => m.status === 'live' && m.round === 5 && m.slot === 0)
+  const liveSpecialMatch = matches.find((m) => m.status === 'live' && matchKind(m as any) === 'final')
   
   const finalPending = finalMatch?.status === 'pending' && finalMatch?.player1_id && finalMatch?.player2_id
   const showFinalBanner = finalPending && thirdPlaceMatch?.status === 'done'
@@ -574,7 +575,7 @@ export function DisplayPage() {
               const matchToShow = liveMatch ?? nextPending
               const isLive = Boolean(liveMatch)
               const isUpNext = Boolean(!liveMatch && nextPending)
-              const isFinal = matchToShow?.round === 5
+              const isFinal = matchKind(matchToShow as any) === 'final'
 
               const p1 = matchToShow?.player1_id ? playerById.get(matchToShow.player1_id) : null
               const p2 = matchToShow?.player2_id ? playerById.get(matchToShow.player2_id) : null
@@ -602,13 +603,7 @@ export function DisplayPage() {
                             M{matchToShow.match_number}
                           </span>
                           <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-                            {matchToShow.round === 5
-                              ? 'Championship Final'
-                              : matchToShow.round === 4
-                                ? 'Semi Final'
-                                : matchToShow.round === 3
-                                  ? 'Quarter Final'
-                                  : 'Round of 16'}
+                            {roundLabel(matchToShow as any)}
                           </span>
                         </>
                       )}
@@ -665,7 +660,7 @@ export function DisplayPage() {
                       <div className="flex flex-col items-center justify-center">
                         <span className="font-serif text-2xl italic text-[#A3A3A3]/40">vs</span>
                         <span className="mt-2 text-xs uppercase tracking-widest text-[#A3A3A3]">
-                          {matchToShow.round === 5 ? 'Race to 3' : 'Race to 2'}
+                          {raceLabel(matchToShow as any)}
                         </span>
                       </div>
 
@@ -706,7 +701,7 @@ export function DisplayPage() {
 
                   {/* Table Footer */}
                   <div className="border-t border-white/5 pt-2 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
-                    {matchToShow?.round === 5 ? 'FINAL - Best of 5' : 'Race to 2 (Best of 3)'}
+                    {matchToShow ? `${roundLabel(matchToShow as any)} · ${raceLabel(matchToShow as any)} (Best of ${matchToShow.best_of})` : 'Table Available'}
                   </div>
                 </div>
               )

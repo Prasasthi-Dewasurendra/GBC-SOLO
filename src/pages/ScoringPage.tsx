@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { raceTarget, getMatchNumber, type BracketMatch, type BracketPlayer } from '../lib/tournament'
 import { supabase } from '../lib/supabase'
+import { matchKind, roundLabel, raceLabel } from '../lib/matchLabels'
 import { toast } from 'sonner'
 
 type MatchRow = BracketMatch & {
@@ -394,7 +395,8 @@ export function ScoringPage() {
                     const isSelected = selectedId === match.id
                     const isLive = match.status === 'live'
                     const isDone = match.status === 'done'
-                    const isFinal = match.round === 5
+                    const kind = matchKind(match as any)
+                    const isFinal = kind === 'final'
                     const p1 = playerById.get(match.player1_id ?? '')
                     const p2 = playerById.get(match.player2_id ?? '')
 
@@ -426,7 +428,7 @@ export function ScoringPage() {
                               M{match.match_number}
                             </span>
                             <span className="text-xs text-[#A3A3A3] hidden sm:inline">
-                              {roundLabels[match.round]}
+                              {roundLabel(match as any)}
                             </span>
 
                             {/* Players & Score */}
@@ -534,7 +536,7 @@ export function ScoringPage() {
                             M{selected.match_number}
                           </span>
                           <span className="ml-2 text-xs uppercase tracking-wider text-[#A3A3A3]">
-                            {roundLabels[selected.round]}
+                            {roundLabel(selected as any)}
                           </span>
                         </div>
                         <div>
@@ -635,9 +637,7 @@ export function ScoringPage() {
                       </div>
 
                       <p className="mt-4 text-center text-xs uppercase tracking-widest text-[#A3A3A3]">
-                        {selected.round === 5
-                          ? 'Championship Final · Best of 5 · Race to 3'
-                          : `Round ${selected.round} · Best of 3 · Race to 2`}
+                        {roundLabel(selected as any)} · {raceLabel(selected as any)} (Best of {selected.best_of})
                       </p>
 
                       {/* Actions according to status */}
@@ -689,7 +689,7 @@ export function ScoringPage() {
 
                       {selected.status === 'live' && (
                         <div className="mt-6 space-y-4">
-                          {selected.round >= 5 && (
+                          {matchKind(selected as any) === 'final' && (
                             <div className="flex justify-center gap-2 mb-4">
                               {Array.from({ length: selected.best_of }).map((_, i) => {
                                 const winner = selected.rack_winners?.[i]

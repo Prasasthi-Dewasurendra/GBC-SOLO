@@ -1,5 +1,7 @@
 import { getMatchNumber } from '../lib/tournament'
 import { PlayerAvatar } from './brand/PlayerAvatar'
+import { matchKind, roundLabel, raceLabel } from '../lib/matchLabels'
+import { Trophy } from 'lucide-react'
 
 export type MatchCardData = {
   id?: string
@@ -29,12 +31,21 @@ const roundLabels = ['', 'R32', 'R16', 'QF', 'SF', 'FINAL']
 
 export function MatchCard({ match, variant = 'standard', onClick, className = '' }: MatchCardProps) {
   const matchNum = match.match_number ?? getMatchNumber(match.round, match.slot)
-  const p1 = match.player1 ?? { name: match.player1_id ? 'Player 1' : 'TBD' }
-  const p2 = match.player2 ?? { name: match.player2_id ? 'Player 2' : 'TBD' }
-
   const isLive = match.status === 'live'
   const isDone = match.status === 'done'
-  const isFinal = match.round === 5
+
+  const kind = matchKind(match as any)
+  const isFinal = kind === 'final'
+  const isThirdPlace = kind === 'third_place'
+
+  const getTbdText = (isPlayer1: boolean) => {
+    if (isFinal) return isPlayer1 ? 'Winner of SF 1' : 'Winner of SF 2'
+    if (isThirdPlace) return isPlayer1 ? 'Loser of SF 1' : 'Loser of SF 2'
+    return 'TBD'
+  }
+
+  const p1 = match.player1 ?? { name: match.player1_id ? 'Player 1' : getTbdText(true) }
+  const p2 = match.player2 ?? { name: match.player2_id ? 'Player 2' : getTbdText(false) }
 
   const p1Winner = isDone && Boolean(match.winner_id && match.winner_id === match.player1_id)
   const p2Winner = isDone && Boolean(match.winner_id && match.winner_id === match.player2_id)
@@ -67,9 +78,12 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
       >
         <div className="mb-2 flex items-center justify-between gap-1.5 text-[11px]">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-semibold text-[#F5F5F5]">M{matchNum}</span>
+            <span className="font-semibold text-[#F5F5F5] flex items-center gap-1">
+              {isFinal && <Trophy size={10} className="text-[#C9A24B]" />}
+              M{matchNum}
+            </span>
             <span className="text-[#A3A3A3]">·</span>
-            <span className="text-[#A3A3A3] truncate">{roundLabels[match.round]}</span>
+            <span className="text-[#A3A3A3] truncate">{roundLabel(match as any)}</span>
             <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-[#A3A3A3]">
               {tableText}
             </span>
@@ -117,11 +131,12 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
       >
         <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-3">
-            <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold text-[#F5F5F5]">
+            <span className="flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold text-[#F5F5F5]">
+              {isFinal && <Trophy size={12} className="text-[#C9A24B]" />}
               M{matchNum}
             </span>
             <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-              {roundLabels[match.round]}
+              {roundLabel(match as any)}
             </span>
             <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-[#F5F5F5]">
               {match.table_number ? `Table ${match.table_number}` : 'Table TBA'}
@@ -166,7 +181,7 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
         </div>
 
         <div className="mt-4 border-t border-white/5 pt-3 text-center text-[11px] uppercase tracking-widest text-[#A3A3A3]">
-          {isFinal ? 'FINAL · Best of 5 · Race to 3' : 'Best of 3 · Race to 2'}
+          {isFinal ? 'FINAL · Best of 5 · Race to 3' : `${raceLabel(match as any)} (Best of ${match.best_of})`}
         </div>
       </div>
     )
@@ -190,11 +205,12 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
     >
       <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
         <div className="flex items-center gap-2">
-          <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-[#F5F5F5]">
+          <span className="flex items-center gap-1.5 rounded border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-[#F5F5F5]">
+            {isFinal && <Trophy size={12} className="text-[#C9A24B]" />}
             M{matchNum}
           </span>
           <span className="text-xs uppercase tracking-wider text-[#A3A3A3]">
-            {roundLabels[match.round]}
+            {roundLabel(match as any)}
           </span>
           <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-[#F5F5F5]">
             {match.table_number ? `Table ${match.table_number}` : 'Table TBA'}
@@ -234,7 +250,7 @@ export function MatchCard({ match, variant = 'standard', onClick, className = ''
       </div>
 
       <div className="mt-3 text-center text-[10px] uppercase tracking-widest text-[#A3A3A3]">
-        {isFinal ? 'FINAL · Best of 5 · Race to 3' : 'Best of 3 · Race to 2'}
+        {isFinal ? 'FINAL · Best of 5 · Race to 3' : `${raceLabel(match as any)} (Best of ${match.best_of})`}
       </div>
     </div>
   )
