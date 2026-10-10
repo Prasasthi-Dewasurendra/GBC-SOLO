@@ -19,12 +19,14 @@ export function PhotoFrame({
   size = 'md',
   aspect = 'square',
   state = 'normal',
+  showWinnerBadge = true,
 }: {
   src?: string | null
   name: string
   size?: PhotoSize
   aspect?: 'square' | 'portrait'
   state?: PhotoState
+  showWinnerBadge?: boolean
 }) {
   const dimension = photoSizes[size]
   const style = { '--photo-size': `${dimension}px` } as CSSProperties
@@ -38,7 +40,7 @@ export function PhotoFrame({
       ) : (
         <User aria-hidden="true" strokeWidth={1.5} />
       )}
-      {state === 'winner' && <span className="display-photo__winner"><Check size={20} strokeWidth={1.5} /></span>}
+      {state === 'winner' && showWinnerBadge && <span className="display-photo__winner"><Check size={20} strokeWidth={1.5} /></span>}
     </div>
   )
 }
@@ -122,8 +124,11 @@ export function MatchPlayer({
 }) {
   return (
     <div className={`display-player display-player--${state}`}>
-      <PhotoFrame src={photo} name={name} size={size} state={state} />
-      <span className="display-player__name" title={name}>{name}</span>
+      <PhotoFrame src={photo} name={name} size={size} state={state} showWinnerBadge={false} />
+      <span className="display-player__identity">
+        {state === 'winner' && <span className="display-player__winner-check"><Check size={20} strokeWidth={1.5} /></span>}
+        <span className="display-player__name" title={name}>{name}</span>
+      </span>
       {score !== undefined && <Score value={score} tone={state === 'winner' ? 'winner' : state === 'loser' ? 'loser' : 'live'} />}
     </div>
   )
