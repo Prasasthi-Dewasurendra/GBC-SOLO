@@ -27,8 +27,8 @@ export function Bracket({
       match_number: match.match_number ?? getMatchNumber(match.round, match.slot),
       p1_racks: matchRow.p1_racks ?? 0,
       p2_racks: matchRow.p2_racks ?? 0,
-      player1: p1 ? { name: p1.name, photo_url: p1.photo_url } : { name: 'TBD' },
-      player2: p2 ? { name: p2.name, photo_url: p2.photo_url } : { name: 'TBD' },
+      player1: p1 ? { name: p1.name, photo_url: p1.photo_url } : layout === 'two-halves' ? undefined : { name: 'TBD' },
+      player2: p2 ? { name: p2.name, photo_url: p2.photo_url } : layout === 'two-halves' ? undefined : { name: 'TBD' },
     }
   }
 
