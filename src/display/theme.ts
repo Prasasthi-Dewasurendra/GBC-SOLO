@@ -15,6 +15,7 @@ export const displayTheme = {
     greenMuted: 'rgba(30,143,99,0.14)',
     pageBackground: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.22) 100%), linear-gradient(180deg, #121214 0%, #0B0B0C 32%, #0B0B0C 100%)',
     photoFade: 'linear-gradient(transparent, rgba(0,0,0,0.2))',
+    matchCardGradient: 'linear-gradient(145deg, #17171A 0%, #121214 78%)',
     confettiWhite: '#FFFFFF',
   },
   fonts: {
@@ -49,6 +50,7 @@ export const displayCssVars = {
   '--display-green-muted': displayTheme.colors.greenMuted,
   '--display-page-background': displayTheme.colors.pageBackground,
   '--display-photo-fade': displayTheme.colors.photoFade,
+  '--display-match-card-gradient': displayTheme.colors.matchCardGradient,
   '--display-font-sans': displayTheme.fonts.sans,
   '--display-font-serif': displayTheme.fonts.serif,
   '--display-safe-margin': `${displayTheme.sizes.safeMargin}px`,
